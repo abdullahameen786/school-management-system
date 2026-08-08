@@ -13,22 +13,21 @@ const AssignmentsHub = () => {
   const [assignments, setAssignments] = useState([]);
   const [loading, setLoading] = useState(true);
   
-  // Modal & Form States
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [submitLoading, setSubmitLoading] = useState(false);
-  const [editingAssignmentId, setEditingAssignmentId] = useState(null); // NEW: Track edit mode
+  const [editingAssignmentId, setEditingAssignmentId] = useState(null); 
   
-  // Form data ab attachment details bhi store karega for editing
+  // UPGRADED: Added dueTime field
   const [formData, setFormData] = useState({ 
     title: '', 
     description: '', 
     maxMarks: '10', 
     dueDate: '',
+    dueTime: '',
     attachmentUrl: '',
     attachmentName: ''
   });
   
-  // File Upload States
   const [selectedFile, setSelectedFile] = useState(null);
   const [fileError, setFileError] = useState('');
 
@@ -71,7 +70,7 @@ const AssignmentsHub = () => {
     fetchAssignments();
   }, [selectedClass]);
 
-  // NEW: Edit button handler
+  // UPGRADED: Populate dueTime on Edit
   const handleEditClick = (task) => {
     setEditingAssignmentId(task.id);
     setFormData({
@@ -79,10 +78,11 @@ const AssignmentsHub = () => {
       description: task.description,
       maxMarks: task.maxMarks.toString(),
       dueDate: task.dueDate,
+      dueTime: task.dueTime || '', // Map existing time if available
       attachmentUrl: task.attachmentUrl || '',
       attachmentName: task.attachmentName || ''
     });
-    setSelectedFile(null); // Clear any pending new file
+    setSelectedFile(null);
     setFileError('');
     setIsModalOpen(true);
   };
@@ -114,27 +114,22 @@ const AssignmentsHub = () => {
     e.target.value = ''; 
   };
 
-  // UPGRADED: Removes either the new selected file OR the existing database file
   const removeUploadedFile = (e) => {
     e.preventDefault();
     e.stopPropagation(); 
     setSelectedFile(null);
     setFileError('');
-    // Clear existing file payload if user clicks 'X' during edit mode
     setFormData(prev => ({ ...prev, attachmentUrl: '', attachmentName: '' }));
   };
 
-  // UPGRADED: Handle both Create and Update operations
   const handlePublish = async (e) => {
     e.preventDefault();
     setSubmitLoading(true);
 
     try {
-      // Default to existing file (if any)
       let finalAttachmentUrl = formData.attachmentUrl;
       let finalAttachmentName = formData.attachmentName;
 
-      // If a brand new file is uploaded, process it and override
       if (selectedFile) {
         finalAttachmentName = selectedFile.name;
         const storageRef = ref(storage, `assignments/${selectedClass}/${Date.now()}_${selectedFile.name}`);
@@ -142,24 +137,24 @@ const AssignmentsHub = () => {
         finalAttachmentUrl = await getDownloadURL(uploadSnapshot.ref);
       }
 
+      // Payload include dueTime
       const payload = {
         classId: selectedClass,
         title: formData.title,
         description: formData.description,
         maxMarks: parseInt(formData.maxMarks),
         dueDate: formData.dueDate,
+        dueTime: formData.dueTime, // Saving Time Data
         attachmentUrl: finalAttachmentUrl,
         attachmentName: finalAttachmentName,
       };
 
       if (editingAssignmentId) {
-        // UPDATE existing document
         await updateDoc(doc(db, 'assignments', editingAssignmentId), {
           ...payload,
           updatedAt: new Date().toISOString()
         });
       } else {
-        // CREATE new document
         await addDoc(collection(db, 'assignments'), {
           ...payload,
           createdAt: new Date().toISOString()
@@ -180,7 +175,7 @@ const AssignmentsHub = () => {
     setEditingAssignmentId(null);
     setSelectedFile(null);
     setFileError('');
-    setFormData({ title: '', description: '', maxMarks: '10', dueDate: '', attachmentUrl: '', attachmentName: '' });
+    setFormData({ title: '', description: '', maxMarks: '10', dueDate: '', dueTime: '', attachmentUrl: '', attachmentName: '' });
   };
 
   const handleDelete = async (id) => {
@@ -192,6 +187,14 @@ const AssignmentsHub = () => {
         console.error("Error deleting assignment:", error);
       }
     }
+  };
+
+  // Helper to elegantly format 24h time to 12h AM/PM format (Optional but nice)
+  const formatTime = (timeStr) => {
+    if (!timeStr) return '';
+    const [hourString, minute] = timeStr.split(':');
+    const hour = +hourString % 24;
+    return (hour % 12 || 12) + ':' + minute + (hour < 12 ? ' AM' : ' PM');
   };
 
   return (
@@ -240,7 +243,6 @@ const AssignmentsHub = () => {
           {assignments.map((task) => (
             <div key={task.id} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm relative group hover:shadow-md transition-shadow flex flex-col justify-between">
               
-              {/* UPGRADED: Action Buttons Container for Edit and Delete */}
               <div className="absolute top-4 right-4 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                 <button 
                   onClick={() => handleEditClick(task)}
@@ -283,7 +285,10 @@ const AssignmentsHub = () => {
 
               <div className="flex justify-between items-center pt-4 border-t border-slate-100 text-xs font-semibold text-slate-400 mt-5">
                 <span className="flex items-center gap-1"><FileText className="h-3.5 w-3.5" /> Marks: <span className="text-slate-700">{task.maxMarks}</span></span>
-                <span className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-rose-50 text-rose-600"><Calendar className="h-3.5 w-3.5" /> Due: {task.dueDate}</span>
+                {/* UPGRADED: Dynamic Date and Time Rendering */}
+                <span className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-rose-50 text-rose-600">
+                  <Calendar className="h-3.5 w-3.5" /> Due: {task.dueDate} {task.dueTime ? `at ${formatTime(task.dueTime)}` : ''}
+                </span>
               </div>
             </div>
           ))}
@@ -292,9 +297,8 @@ const AssignmentsHub = () => {
 
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 overflow-y-auto">
-          <div className="w-full max-w-md bg-white rounded-2xl shadow-xl border border-slate-100 transform transition-all animate-in fade-in zoom-in-95 duration-200 my-8">
+          <div className="w-full max-w-lg bg-white rounded-2xl shadow-xl border border-slate-100 transform transition-all animate-in fade-in zoom-in-95 duration-200 my-8">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
-              {/* Dynamic Title */}
               <h3 className="text-lg font-bold text-slate-800">
                 {editingAssignmentId ? 'Edit Assignment' : 'Publish New Assignment'}
               </h3>
@@ -328,7 +332,6 @@ const AssignmentsHub = () => {
                 />
               </div>
 
-              {/* UPGRADED: Check for BOTH new selectedFile OR existing formData.attachmentName */}
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-1">Upload Reference File <span className="text-xs font-normal text-slate-400">(Optional - Max 2MB)</span></label>
                 <div className={`mt-1 border-2 border-dashed rounded-xl p-4 text-center transition-all relative ${(selectedFile || formData.attachmentName) ? 'border-emerald-500 bg-emerald-50/20' : fileError ? 'border-rose-400 bg-rose-50/20' : 'border-slate-200 bg-slate-50 hover:bg-slate-100/50'}`}>
@@ -347,7 +350,7 @@ const AssignmentsHub = () => {
                       <div className="flex items-center justify-between bg-white px-3 py-2 border border-emerald-100 rounded-xl max-w-full z-20 relative shadow-sm">
                         <div className="flex items-center gap-2 truncate text-emerald-800 font-semibold pr-2">
                           <Paperclip className="h-4 w-4 text-emerald-500 shrink-0" />
-                          <span className="truncate max-w-[160px] sm:max-w-[200px]">
+                          <span className="truncate max-w-[160px] sm:max-w-[240px]">
                             {selectedFile ? selectedFile.name : formData.attachmentName}
                           </span>
                           {selectedFile && (
@@ -375,7 +378,8 @@ const AssignmentsHub = () => {
                 {fileError && <p className="text-xs font-semibold text-rose-600 mt-1.5 flex items-center gap-1">⚠️ {fileError}</p>}
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              {/* UPGRADED: 3-Column Grid for Metrics, Date, and Time */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-1">Max Marks</label>
                   <input
@@ -394,6 +398,16 @@ const AssignmentsHub = () => {
                     required
                     value={formData.dueDate}
                     onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
+                    className="block w-full px-3 py-2.5 border border-slate-200 bg-slate-50 rounded-xl text-sm focus:outline-none focus:border-emerald-500 focus:bg-white cursor-pointer"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1">Due Time</label>
+                  <input
+                    type="time"
+                    required
+                    value={formData.dueTime}
+                    onChange={(e) => setFormData({ ...formData, dueTime: e.target.value })}
                     className="block w-full px-3 py-2.5 border border-slate-200 bg-slate-50 rounded-xl text-sm focus:outline-none focus:border-emerald-500 focus:bg-white cursor-pointer"
                   />
                 </div>
