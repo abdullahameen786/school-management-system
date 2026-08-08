@@ -23,6 +23,7 @@ import AssignmentsHub from "./pages/teacher/AssignmentsHub";
 import GradebookPortal from "./pages/teacher/GradebookPortal";
 // Student
 import StudentLayout from "./components/layout/StudentLayout";
+import StudentDashboardHome from "./pages/student/StudentDashboardHome";
 //auth/login
 import Login from "./pages/auth/Login";
 
@@ -70,32 +71,45 @@ const StudentDashboard = () => {
     <StudentLayout>
       <Routes>
         {/* Baseline Root Page for Student */}
-        <Route path="/" element={
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-            <h1 className="text-2xl font-bold text-slate-800">My Dashboard</h1>
-            <p className="text-slate-500 mt-1 text-sm">Welcome to your student portal dashboard.</p>
-          </div>
-        } />
-        <Route path="/attendance" element={
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-            <h1 className="text-2xl font-bold text-slate-800">My Attendance</h1>
-          </div>
-        } />
-        <Route path="/grades" element={
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-            <h1 className="text-2xl font-bold text-slate-800">My Grades</h1>
-          </div>
-        } />
-        <Route path="/assignments" element={
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-            <h1 className="text-2xl font-bold text-slate-800">Assignments Hub</h1>
-          </div>
-        } />
-        <Route path="/announcements" element={
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-            <h1 className="text-2xl font-bold text-slate-800">Notice Board</h1>
-          </div>
-        } />
+        <Route path="/" element={<StudentDashboardHome />} />
+        <Route
+          path="/attendance"
+          element={
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+              <h1 className="text-2xl font-bold text-slate-800">
+                My Attendance
+              </h1>
+            </div>
+          }
+        />
+        <Route
+          path="/grades"
+          element={
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+              <h1 className="text-2xl font-bold text-slate-800">My Grades</h1>
+            </div>
+          }
+        />
+        <Route
+          path="/assignments"
+          element={
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+              <h1 className="text-2xl font-bold text-slate-800">
+                Assignments Hub
+              </h1>
+            </div>
+          }
+        />
+        <Route
+          path="/announcements"
+          element={
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+              <h1 className="text-2xl font-bold text-slate-800">
+                Notice Board
+              </h1>
+            </div>
+          }
+        />
       </Routes>
     </StudentLayout>
   );
