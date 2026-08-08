@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { collection, query, where, getDocs, doc, setDoc } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import { useAuth } from '../../context/AuthContext';
-import { BookOpen, Clipboard, Save, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { BookOpen, Clipboard, Save, AlertCircle, CheckCircle2, Lock } from 'lucide-react';
 
 const GradebookPortal = () => {
   const { user } = useAuth();
@@ -13,7 +13,7 @@ const GradebookPortal = () => {
   
   // Selection states
   const [selectedClass, setSelectedClass] = useState('');
-  const [selectedAssignment, setSelectedAssignment] = useState('');
+  const [selectedEvaluation, setSelectedEvaluation] = useState(''); // Stores assignmentId OR 'midterm' OR 'final'
   
   // Scoring states
   const [gradesMap, setGradesMap] = useState({});
@@ -46,8 +46,9 @@ const GradebookPortal = () => {
         const snap = await getDocs(q);
         const fetched = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         setAssignments(fetched);
-        if (fetched.length > 0) setSelectedAssignment(fetched[0].id);
-        else setSelectedAssignment('');
+        
+        // Default assignment selection: 'midterm' is the default view option now
+        setSelectedEvaluation('midterm');
       } catch (error) {
         console.error("Error loading assignments:", error);
       }
@@ -58,7 +59,7 @@ const GradebookPortal = () => {
   // 3. Fetch Students & Existing Grades matrix
   useEffect(() => {
     const fetchStudentsAndGrades = async () => {
-      if (!selectedClass || !selectedAssignment) {
+      if (!selectedClass || !selectedEvaluation) {
         setStudents([]);
         setLoading(false);
         return;
@@ -72,8 +73,8 @@ const GradebookPortal = () => {
         const fetchedStudents = sSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         setStudents(fetchedStudents);
 
-        // Fetch already saved grades for this specific assignment
-        const gQuery = query(collection(db, 'grades'), where('assignmentId', '==', selectedAssignment));
+        // Fetch already saved grades for this evaluation type (assignmentId / midterm / final)
+        const gQuery = query(collection(db, 'grades'), where('evaluationId', '==', selectedEvaluation));
         const gSnap = await getDocs(gQuery);
         const fetchedGrades = {};
         gSnap.forEach(doc => {
@@ -89,7 +90,7 @@ const GradebookPortal = () => {
     };
 
     fetchStudentsAndGrades();
-  }, [selectedClass, selectedAssignment]);
+  }, [selectedClass, selectedEvaluation]);
 
   const handleMarkChange = (studentId, value) => {
     setGradesMap(prev => ({ ...prev, [studentId]: value }));
@@ -102,29 +103,41 @@ const GradebookPortal = () => {
     setSuccessMsg('');
 
     try {
-      const currentAssignment = assignments.find(a => a.id === selectedAssignment);
+      let evaluationTitle = '';
+      let maxMarksScale = 100; // Default scale for exams
+
+      if (selectedEvaluation === 'midterm') {
+        evaluationTitle = 'Midterm Examination';
+        maxMarksScale = 30; // Custom scaling threshold for midterms
+      } else if (selectedEvaluation === 'final') {
+        evaluationTitle = 'Final Examination';
+        maxMarksScale = 50; // Custom scaling threshold for finals
+      } else {
+        const currentAsg = assignments.find(a => a.id === selectedEvaluation);
+        evaluationTitle = currentAsg?.title || 'Assignment Task';
+        maxMarksScale = currentAsg?.maxMarks || 10;
+      }
       
-      // Batch array creation paths loop
       const promises = students.map(student => {
         const score = gradesMap[student.id];
         if (score === undefined || score === '') return Promise.resolve();
 
-        // Composite record entry document string validation key: studentId_assignmentId
-        const recordId = `${student.id}_${selectedAssignment}`;
+        // Composite record entry key prevents duplication: studentId_evaluationId
+        const recordId = `${student.id}_${selectedEvaluation}`;
         return setDoc(doc(db, 'grades', recordId), {
           studentId: student.id,
           studentName: student.name,
           classId: selectedClass,
-          assignmentId: selectedAssignment,
-          assignmentTitle: currentAssignment?.title || '',
-          maxMarks: currentAssignment?.maxMarks || 10,
+          evaluationId: selectedEvaluation, // Can be assignmentId, 'midterm', or 'final'
+          evaluationTitle: evaluationTitle,
+          maxMarks: maxMarksScale,
           obtainedMarks: parseFloat(score),
           updatedAt: new Date().toISOString()
         }, { merge: true });
       });
 
       await Promise.all(promises);
-      setSuccessMsg('Gradebook record charts updated successfully!');
+      setSuccessMsg(`${evaluationTitle} record sheets updated successfully!`);
     } catch (error) {
       console.error("Error saving score tables:", error);
     } finally {
@@ -132,7 +145,23 @@ const GradebookPortal = () => {
     }
   };
 
-  const activeAssignment = assignments.find(a => a.id === selectedAssignment);
+  // Check if current target selection is an assignment and evaluate if locked
+  const activeAssignment = assignments.find(a => a.id === selectedEvaluation);
+  let isEvaluationLocked = false;
+  
+  if (activeAssignment && activeAssignment.dueDate) {
+    const today = new Date().toISOString().split('T')[0];
+    if (today < activeAssignment.dueDate) {
+      isEvaluationLocked = true;
+    }
+  }
+
+  // Determine Max Marks to display for the current selection
+  const getMaxMarksDisplay = () => {
+    if (selectedEvaluation === 'midterm') return 30;
+    if (selectedEvaluation === 'final') return 50;
+    return activeAssignment?.maxMarks || 10;
+  };
 
   return (
     <div className="space-y-6">
@@ -144,7 +173,7 @@ const GradebookPortal = () => {
         </div>
 
         <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
-          {/* Class Select dropdown selection */}
+          {/* Class Select Dropdown */}
           <div className="flex items-center gap-2 bg-white px-4 py-2.5 rounded-xl border border-slate-200 shadow-sm w-full sm:w-auto">
             <BookOpen className="h-4 w-4 text-emerald-600" />
             <select
@@ -156,20 +185,26 @@ const GradebookPortal = () => {
             </select>
           </div>
 
-          {/* Target Assignment selector dropdown structure component */}
+          {/* Unified Evaluation Selector Dropdown */}
           <div className="flex items-center gap-2 bg-white px-4 py-2.5 rounded-xl border border-slate-200 shadow-sm w-full sm:w-auto">
             <Clipboard className="h-4 w-4 text-emerald-600" />
             <select
-              value={selectedAssignment}
-              onChange={(e) => setSelectedAssignment(e.target.value)}
+              value={selectedEvaluation}
+              onChange={(e) => setSelectedEvaluation(e.target.value)}
               className="bg-transparent border-none text-sm font-semibold text-slate-700 focus:outline-none cursor-pointer w-full"
-              disabled={assignments.length === 0}
             >
-              {assignments.length === 0 ? (
-                <option value="">No Active Tasks</option>
-              ) : (
-                assignments.map(a => <option key={a.id} value={a.id}>{a.title}</option>
-              ))}
+              <optgroup label="Institutional Exams">
+                <option value="midterm">📝 Midterm Examination</option>
+                <option value="final">🏆 Final Examination</option>
+              </optgroup>
+              
+              {assignments.length > 0 && (
+                <optgroup label="Coursework Assignments">
+                  {assignments.map(a => (
+                    <option key={a.id} value={a.id}>📋 {a.title}</option>
+                  ))}
+                </optgroup>
+              )}
             </select>
           </div>
         </div>
@@ -178,6 +213,19 @@ const GradebookPortal = () => {
       {successMsg && (
         <div className="p-4 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl flex items-center gap-2 text-sm font-medium animate-in fade-in duration-200">
           <CheckCircle2 className="h-4 w-4 text-emerald-500" /> {successMsg}
+        </div>
+      )}
+
+      {/* Warning Banner for Locked Assignments */}
+      {isEvaluationLocked && activeAssignment && (
+        <div className="p-4 bg-amber-50 text-amber-800 border border-amber-200 rounded-xl flex items-center gap-3 text-sm font-medium shadow-sm">
+          <div className="h-8 w-8 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
+            <Lock className="h-4 w-4 text-amber-600" />
+          </div>
+          <div>
+            <p className="font-bold text-amber-900">Evaluation Locked</p>
+            <p className="text-amber-700 mt-0.5">You can evaluate this assignment after the due date: <span className="font-bold">{activeAssignment.dueDate}</span>.</p>
+          </div>
         </div>
       )}
 
@@ -196,14 +244,7 @@ const GradebookPortal = () => {
               {loading ? (
                 <tr>
                   <td colSpan="3" className="px-6 py-12 text-center">
-                    <div className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-slate-200 border-t-emerald-600"></div>
-                  </td>
-                </tr>
-              ) : assignments.length === 0 ? (
-                <tr>
-                  <td colSpan="3" className="px-6 py-12 text-center text-slate-500">
-                    <AlertCircle className="h-8 w-8 mx-auto text-slate-400 mb-2" />
-                    Publish an assignment task in the hub first to configure grade sheets.
+                    <div className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-slate-300 border-t-emerald-600"></div>
                   </td>
                 </tr>
               ) : students.length === 0 ? (
@@ -222,24 +263,25 @@ const GradebookPortal = () => {
                           {student.name ? student.name.charAt(0).toUpperCase() : 'S'}
                         </div>
                         <div className="ml-3">
-                          <p className="text-sm font-bold text-slate-800">{student.name}</p>
+                          <p className={`text-sm font-bold ${!isEvaluationLocked ? 'text-slate-800' : 'text-slate-500'}`}>{student.name}</p>
                           <p className="text-xs text-slate-400">{student.email}</p>
                         </div>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-semibold text-slate-500">
-                      / {activeAssignment?.maxMarks || 10}
+                      / {getMaxMarksDisplay()}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right">
                       <input
                         type="number"
                         min="0"
-                        max={activeAssignment?.maxMarks || 100}
+                        max={getMaxMarksDisplay()}
                         step="0.5"
                         placeholder="0.0"
                         value={gradesMap[student.id] || ''}
                         onChange={(e) => handleMarkChange(student.id, e.target.value)}
-                        className="w-24 px-3 py-1.5 border border-slate-200 bg-slate-50 rounded-xl text-sm text-center font-bold text-slate-800 focus:outline-none focus:border-emerald-500 focus:bg-white focus:ring-1 focus:ring-emerald-500"
+                        disabled={isEvaluationLocked}
+                        className="w-24 px-3 py-1.5 border border-slate-200 bg-slate-50 rounded-xl text-sm text-center font-bold text-slate-800 focus:outline-none focus:border-emerald-500 focus:bg-white focus:ring-1 focus:ring-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-slate-100"
                       />
                     </td>
                   </tr>
@@ -249,19 +291,20 @@ const GradebookPortal = () => {
           </table>
         </div>
 
-        {/* Bottom Save Action Controls panel */}
-        {students.length > 0 && assignments.length > 0 && (
+        {/* Bottom Save Action Controls */}
+        {students.length > 0 && (
           <div className="p-4 bg-slate-50 border-t border-slate-200 flex justify-end">
             <button
               type="submit"
-              disabled={saveLoading}
-              className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-xl text-sm font-semibold shadow-sm transition-colors cursor-pointer disabled:bg-emerald-400"
+              disabled={saveLoading || isEvaluationLocked}
+              className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-xl text-sm font-semibold shadow-sm transition-colors cursor-pointer disabled:bg-emerald-400 disabled:cursor-not-allowed"
             >
               {saveLoading ? (
                 <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
               ) : (
                 <>
-                  <Save className="h-4 w-4" /> Save Evaluation Report
+                  {!isEvaluationLocked ? <Save className="h-4 w-4" /> : <Lock className="h-4 w-4" />} 
+                  {!isEvaluationLocked ? 'Save Evaluation Report' : 'Locked'}
                 </>
               )}
             </button>

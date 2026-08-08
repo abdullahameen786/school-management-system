@@ -20,7 +20,7 @@ import TeacherLayout from "./components/layout/TeacherLayout";
 import TeacherClasses from "./pages/teacher/TeacherClasses";
 import StudentAttendance from "./pages/teacher/StudentAttendance";
 import AssignmentsHub from "./pages/teacher/AssignmentsHub";
-import GradebookPortal from './pages/teacher/GradebookPortal';
+import GradebookPortal from "./pages/teacher/GradebookPortal";
 //auth/login
 import Login from "./pages/auth/Login";
 
@@ -61,16 +61,7 @@ const TeacherDashboard = () => {
         {/* Index path "/" represents the baseline root page for the teacher, which is "/teacher" */}
         <Route path="/" element={<TeacherClasses />} />
         <Route path="/attendance" element={<StudentAttendance />} />
-        <Route
-          path="/grades"
-          element={
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-              <h1 className="text-2xl font-bold text-slate-800">
-                Gradebook Module
-              </h1>
-            </div>
-          }
-        />
+        <Route path="/grades" element={<GradebookPortal />} />
         <Route path="/assignments" element={<AssignmentsHub />} />
       </Routes>
     </TeacherLayout>

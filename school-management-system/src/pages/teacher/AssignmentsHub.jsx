@@ -1,10 +1,10 @@
 // src/pages/teacher/AssignmentsHub.jsx
 import React, { useState, useEffect } from 'react';
-import { collection, query, where, getDocs, addDoc, deleteDoc, doc } from 'firebase/firestore';
+import { collection, query, where, getDocs, addDoc, deleteDoc, updateDoc, doc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../../firebase/config';
 import { useAuth } from '../../context/AuthContext';
-import { Plus, Clipboard, Calendar, FileText, Trash2, ShieldAlert, BookOpen, X, FileUp, Paperclip, Loader2 } from 'lucide-react';
+import { Plus, Clipboard, Calendar, FileText, Trash2, ShieldAlert, BookOpen, X, FileUp, Paperclip, Loader2, Edit2 } from 'lucide-react';
 
 const AssignmentsHub = () => {
   const { user } = useAuth();
@@ -16,16 +16,24 @@ const AssignmentsHub = () => {
   // Modal & Form States
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [submitLoading, setSubmitLoading] = useState(false);
-  const [formData, setFormData] = useState({ title: '', description: '', maxMarks: '10', dueDate: '' });
+  const [editingAssignmentId, setEditingAssignmentId] = useState(null); // NEW: Track edit mode
+  
+  // Form data ab attachment details bhi store karega for editing
+  const [formData, setFormData] = useState({ 
+    title: '', 
+    description: '', 
+    maxMarks: '10', 
+    dueDate: '',
+    attachmentUrl: '',
+    attachmentName: ''
+  });
   
   // File Upload States
   const [selectedFile, setSelectedFile] = useState(null);
   const [fileError, setFileError] = useState('');
 
-  // Allowed Formats Extension Matrix Map
   const allowedExtensions = ['pdf', 'doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx', 'zip'];
 
-  // 1. Fetch Teacher's Assigned Classes
   useEffect(() => {
     const fetchClasses = async () => {
       try {
@@ -43,7 +51,6 @@ const AssignmentsHub = () => {
     if (user?.uid) fetchClasses();
   }, [user]);
 
-  // 2. Fetch Assignments for the selected class
   const fetchAssignments = async () => {
     if (!selectedClass) return;
     setLoading(true);
@@ -64,7 +71,22 @@ const AssignmentsHub = () => {
     fetchAssignments();
   }, [selectedClass]);
 
-  // 🔄 UPGRADED: Handle File Validation for Multiple Extensions
+  // NEW: Edit button handler
+  const handleEditClick = (task) => {
+    setEditingAssignmentId(task.id);
+    setFormData({
+      title: task.title,
+      description: task.description,
+      maxMarks: task.maxMarks.toString(),
+      dueDate: task.dueDate,
+      attachmentUrl: task.attachmentUrl || '',
+      attachmentName: task.attachmentName || ''
+    });
+    setSelectedFile(null); // Clear any pending new file
+    setFileError('');
+    setIsModalOpen(true);
+  };
+
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     setFileError('');
@@ -74,17 +96,14 @@ const AssignmentsHub = () => {
       return;
     }
 
-    // Filename se extension isolate karne ki logic
     const fileExtension = file.name.split('.').pop().toLowerCase();
 
-    // Validation 1: Match against authorized whitelist array
     if (!allowedExtensions.includes(fileExtension)) {
       setFileError('Invalid format! Supported: PDF, DOCX, PPTX, XLSX, ZIP.');
       setSelectedFile(null);
       return;
     }
 
-    // Validation 2: Check File Size (2MB strict cap)
     if (file.size > 2 * 1024 * 1024) {
       setFileError('File size triggers security blocker! Maximum allowed size is 2MB.');
       setSelectedFile(null);
@@ -92,39 +111,65 @@ const AssignmentsHub = () => {
     }
 
     setSelectedFile(file);
+    e.target.value = ''; 
   };
 
-  // 3. Post New Assignment
+  // UPGRADED: Removes either the new selected file OR the existing database file
+  const removeUploadedFile = (e) => {
+    e.preventDefault();
+    e.stopPropagation(); 
+    setSelectedFile(null);
+    setFileError('');
+    // Clear existing file payload if user clicks 'X' during edit mode
+    setFormData(prev => ({ ...prev, attachmentUrl: '', attachmentName: '' }));
+  };
+
+  // UPGRADED: Handle both Create and Update operations
   const handlePublish = async (e) => {
     e.preventDefault();
     setSubmitLoading(true);
 
     try {
-      let attachmentUrl = '';
-      let attachmentName = '';
+      // Default to existing file (if any)
+      let finalAttachmentUrl = formData.attachmentUrl;
+      let finalAttachmentName = formData.attachmentName;
 
+      // If a brand new file is uploaded, process it and override
       if (selectedFile) {
-        attachmentName = selectedFile.name;
+        finalAttachmentName = selectedFile.name;
         const storageRef = ref(storage, `assignments/${selectedClass}/${Date.now()}_${selectedFile.name}`);
         const uploadSnapshot = await uploadBytes(storageRef, selectedFile);
-        attachmentUrl = await getDownloadURL(uploadSnapshot.ref);
+        finalAttachmentUrl = await getDownloadURL(uploadSnapshot.ref);
       }
 
-      await addDoc(collection(db, 'assignments'), {
+      const payload = {
         classId: selectedClass,
         title: formData.title,
         description: formData.description,
         maxMarks: parseInt(formData.maxMarks),
         dueDate: formData.dueDate,
-        attachmentUrl,
-        attachmentName,
-        createdAt: new Date().toISOString()
-      });
+        attachmentUrl: finalAttachmentUrl,
+        attachmentName: finalAttachmentName,
+      };
+
+      if (editingAssignmentId) {
+        // UPDATE existing document
+        await updateDoc(doc(db, 'assignments', editingAssignmentId), {
+          ...payload,
+          updatedAt: new Date().toISOString()
+        });
+      } else {
+        // CREATE new document
+        await addDoc(collection(db, 'assignments'), {
+          ...payload,
+          createdAt: new Date().toISOString()
+        });
+      }
 
       closeModal();
       fetchAssignments();
     } catch (error) {
-      console.error("Error adding assignment:", error);
+      console.error("Error saving assignment:", error);
     } finally {
       setSubmitLoading(false);
     }
@@ -132,9 +177,10 @@ const AssignmentsHub = () => {
 
   const closeModal = () => {
     setIsModalOpen(false);
+    setEditingAssignmentId(null);
     setSelectedFile(null);
     setFileError('');
-    setFormData({ title: '', description: '', maxMarks: '10', dueDate: '' });
+    setFormData({ title: '', description: '', maxMarks: '10', dueDate: '', attachmentUrl: '', attachmentName: '' });
   };
 
   const handleDelete = async (id) => {
@@ -150,7 +196,6 @@ const AssignmentsHub = () => {
 
   return (
     <div className="space-y-6 relative">
-      {/* Header and Filter Option */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-800">Assignments Hub</h1>
@@ -181,7 +226,6 @@ const AssignmentsHub = () => {
         </div>
       </div>
 
-      {/* Main Feed Output */}
       {loading ? (
         <div className="bg-white p-12 text-center">
           <div className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-slate-200 border-t-emerald-600"></div>
@@ -195,22 +239,34 @@ const AssignmentsHub = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {assignments.map((task) => (
             <div key={task.id} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm relative group hover:shadow-md transition-shadow flex flex-col justify-between">
-              <button 
-                onClick={() => handleDelete(task.id)}
-                className="absolute top-4 right-4 p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer opacity-0 group-hover:opacity-100"
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
+              
+              {/* UPGRADED: Action Buttons Container for Edit and Delete */}
+              <div className="absolute top-4 right-4 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button 
+                  onClick={() => handleEditClick(task)}
+                  className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
+                  title="Edit Assignment"
+                >
+                  <Edit2 className="h-4 w-4" />
+                </button>
+                <button 
+                  onClick={() => handleDelete(task.id)}
+                  className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                  title="Delete Assignment"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
 
-              <div className="space-y-3">
+              <div className="space-y-3 pr-16">
                 <div className="flex items-center gap-2.5">
-                  <div className="h-9 w-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                  <div className="h-9 w-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
                     <Clipboard className="h-4 w-4" />
                   </div>
-                  <h3 className="text-lg font-bold text-slate-800">{task.title}</h3>
+                  <h3 className="text-lg font-bold text-slate-800 line-clamp-1">{task.title}</h3>
                 </div>
 
-                <p className="text-slate-600 text-sm leading-relaxed whitespace-pre-wrap">{task.description}</p>
+                <p className="text-slate-600 text-sm leading-relaxed whitespace-pre-wrap line-clamp-3">{task.description}</p>
                 
                 {task.attachmentUrl && (
                   <a 
@@ -220,7 +276,7 @@ const AssignmentsHub = () => {
                     className="inline-flex items-center gap-2 mt-2 px-3 py-1.5 rounded-xl bg-slate-100 text-slate-700 text-xs font-semibold border border-slate-200 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200 transition-colors w-fit max-w-full"
                   >
                     <Paperclip className="h-3.5 w-3.5 shrink-0 text-slate-400" />
-                    <span className="truncate">{task.attachmentName || 'View Attachment Document'}</span>
+                    <span className="truncate">{task.attachmentName || 'View Attachment'}</span>
                   </a>
                 )}
               </div>
@@ -234,12 +290,14 @@ const AssignmentsHub = () => {
         </div>
       )}
 
-      {/* Slide Modal Overlay */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 overflow-y-auto">
           <div className="w-full max-w-md bg-white rounded-2xl shadow-xl border border-slate-100 transform transition-all animate-in fade-in zoom-in-95 duration-200 my-8">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
-              <h3 className="text-lg font-bold text-slate-800">Publish New Assignment</h3>
+              {/* Dynamic Title */}
+              <h3 className="text-lg font-bold text-slate-800">
+                {editingAssignmentId ? 'Edit Assignment' : 'Publish New Assignment'}
+              </h3>
               <button onClick={closeModal} className="text-slate-400 hover:text-slate-600 rounded-lg p-1 hover:bg-slate-50 transition-colors">
                 <X className="h-5 w-5" />
               </button>
@@ -270,22 +328,40 @@ const AssignmentsHub = () => {
                 />
               </div>
 
-              {/* 🔄 UPGRADED: Multi-Extension Support Drop-Zone Input UI */}
+              {/* UPGRADED: Check for BOTH new selectedFile OR existing formData.attachmentName */}
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-1">Upload Reference File <span className="text-xs font-normal text-slate-400">(Optional - Max 2MB)</span></label>
-                <div className={`mt-1 border-2 border-dashed rounded-xl p-4 text-center transition-all relative ${selectedFile ? 'border-emerald-500 bg-emerald-50/20' : fileError ? 'border-rose-400 bg-rose-50/20' : 'border-slate-200 bg-slate-50 hover:bg-slate-100/50'}`}>
-                  <input 
-                    type="file" 
-                    accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.zip"
-                    onChange={handleFileChange}
-                    className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
-                  />
+                <div className={`mt-1 border-2 border-dashed rounded-xl p-4 text-center transition-all relative ${(selectedFile || formData.attachmentName) ? 'border-emerald-500 bg-emerald-50/20' : fileError ? 'border-rose-400 bg-rose-50/20' : 'border-slate-200 bg-slate-50 hover:bg-slate-100/50'}`}>
+                  
+                  {!(selectedFile || formData.attachmentName) && (
+                    <input 
+                      type="file" 
+                      accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.zip"
+                      onChange={handleFileChange}
+                      className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
+                    />
+                  )}
+
                   <div className="space-y-1 text-xs">
-                    {selectedFile ? (
-                      <div className="flex items-center justify-center gap-2 text-emerald-700 font-semibold">
-                        <Paperclip className="h-4 w-4 text-emerald-500" />
-                        <span className="truncate max-w-[220px]">{selectedFile.name}</span>
-                        <span className="text-[10px] text-emerald-500">({(selectedFile.size / (1024 * 1024)).toFixed(2)} MB)</span>
+                    {(selectedFile || formData.attachmentName) ? (
+                      <div className="flex items-center justify-between bg-white px-3 py-2 border border-emerald-100 rounded-xl max-w-full z-20 relative shadow-sm">
+                        <div className="flex items-center gap-2 truncate text-emerald-800 font-semibold pr-2">
+                          <Paperclip className="h-4 w-4 text-emerald-500 shrink-0" />
+                          <span className="truncate max-w-[160px] sm:max-w-[200px]">
+                            {selectedFile ? selectedFile.name : formData.attachmentName}
+                          </span>
+                          {selectedFile && (
+                            <span className="text-[10px] text-emerald-500 font-normal shrink-0">({(selectedFile.size / (1024 * 1024)).toFixed(2)} MB)</span>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={removeUploadedFile}
+                          className="text-slate-400 hover:text-rose-600 rounded-lg p-1 hover:bg-rose-50 transition-colors cursor-pointer shrink-0"
+                          title="Remove file"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
                       </div>
                     ) : (
                       <>
@@ -316,7 +392,6 @@ const AssignmentsHub = () => {
                   <input
                     type="date"
                     required
-                    min={new Date().toISOString().split('T')[0]}
                     value={formData.dueDate}
                     onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
                     className="block w-full px-3 py-2.5 border border-slate-200 bg-slate-50 rounded-xl text-sm focus:outline-none focus:border-emerald-500 focus:bg-white cursor-pointer"
@@ -340,9 +415,9 @@ const AssignmentsHub = () => {
                   {submitLoading ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                      Uploading...
+                      Saving...
                     </>
-                  ) : 'Publish Task'}
+                  ) : (editingAssignmentId ? 'Save Changes' : 'Publish Task')}
                 </button>
               </div>
             </form>
