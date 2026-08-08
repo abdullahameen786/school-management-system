@@ -21,6 +21,8 @@ import TeacherClasses from "./pages/teacher/TeacherClasses";
 import StudentAttendance from "./pages/teacher/StudentAttendance";
 import AssignmentsHub from "./pages/teacher/AssignmentsHub";
 import GradebookPortal from "./pages/teacher/GradebookPortal";
+// Student
+import StudentLayout from "./components/layout/StudentLayout";
 //auth/login
 import Login from "./pages/auth/Login";
 
@@ -30,11 +32,6 @@ const Unauthorized = () => (
     <h2 className="text-2xl font-bold text-red-600">
       401 - Unauthorized Access
     </h2>
-  </div>
-);
-const StudentHome = () => (
-  <div className="p-8">
-    <h1 className="text-3xl font-bold text-sky-700">Student Dashboard Home</h1>
   </div>
 );
 
@@ -53,18 +50,54 @@ const AdminDashboard = () => {
   );
 };
 
-// 🛠️ 2. TEACHER SUB-ROUTER (Fixed Sub-Routes Structure)
+// 🛠️ 2. TEACHER SUB-ROUTER
 const TeacherDashboard = () => {
   return (
     <TeacherLayout>
       <Routes>
-        {/* Index path "/" represents the baseline root page for the teacher, which is "/teacher" */}
         <Route path="/" element={<TeacherClasses />} />
         <Route path="/attendance" element={<StudentAttendance />} />
         <Route path="/grades" element={<GradebookPortal />} />
         <Route path="/assignments" element={<AssignmentsHub />} />
       </Routes>
     </TeacherLayout>
+  );
+};
+
+// 🛠️ 3. STUDENT SUB-ROUTER (Fixed Sub-Routes Structure)
+const StudentDashboard = () => {
+  return (
+    <StudentLayout>
+      <Routes>
+        {/* Baseline Root Page for Student */}
+        <Route path="/" element={
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+            <h1 className="text-2xl font-bold text-slate-800">My Dashboard</h1>
+            <p className="text-slate-500 mt-1 text-sm">Welcome to your student portal dashboard.</p>
+          </div>
+        } />
+        <Route path="/attendance" element={
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+            <h1 className="text-2xl font-bold text-slate-800">My Attendance</h1>
+          </div>
+        } />
+        <Route path="/grades" element={
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+            <h1 className="text-2xl font-bold text-slate-800">My Grades</h1>
+          </div>
+        } />
+        <Route path="/assignments" element={
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+            <h1 className="text-2xl font-bold text-slate-800">Assignments Hub</h1>
+          </div>
+        } />
+        <Route path="/announcements" element={
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+            <h1 className="text-2xl font-bold text-slate-800">Notice Board</h1>
+          </div>
+        } />
+      </Routes>
+    </StudentLayout>
   );
 };
 
@@ -103,7 +136,7 @@ function App() {
             path="/student/*"
             element={
               <ProtectedRoute allowedRoles={["student"]}>
-                <StudentHome />
+                <StudentDashboard />
               </ProtectedRoute>
             }
           />
