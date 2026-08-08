@@ -19,6 +19,8 @@ import Announcements from "./pages/admin/Announcements";
 import TeacherLayout from "./components/layout/TeacherLayout";
 import TeacherClasses from "./pages/teacher/TeacherClasses";
 import StudentAttendance from "./pages/teacher/StudentAttendance";
+import AssignmentsHub from "./pages/teacher/AssignmentsHub";
+import GradebookPortal from './pages/teacher/GradebookPortal';
 //auth/login
 import Login from "./pages/auth/Login";
 
@@ -69,16 +71,7 @@ const TeacherDashboard = () => {
             </div>
           }
         />
-        <Route
-          path="/assignments"
-          element={
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-              <h1 className="text-2xl font-bold text-slate-800">
-                Assignments Hub
-              </h1>
-            </div>
-          }
-        />
+        <Route path="/assignments" element={<AssignmentsHub />} />
       </Routes>
     </TeacherLayout>
   );
