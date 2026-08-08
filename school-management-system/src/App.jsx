@@ -24,6 +24,7 @@ import GradebookPortal from "./pages/teacher/GradebookPortal";
 // Student
 import StudentLayout from "./components/layout/StudentLayout";
 import StudentDashboardHome from "./pages/student/StudentDashboardHome";
+import StudentAttendanceView from "./pages/student/StudentAttendanceView";
 //auth/login
 import Login from "./pages/auth/Login";
 
@@ -72,16 +73,7 @@ const StudentDashboard = () => {
       <Routes>
         {/* Baseline Root Page for Student */}
         <Route path="/" element={<StudentDashboardHome />} />
-        <Route
-          path="/attendance"
-          element={
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-              <h1 className="text-2xl font-bold text-slate-800">
-                My Attendance
-              </h1>
-            </div>
-          }
-        />
+        <Route path="/attendance" element={<StudentAttendanceView />} />
         <Route
           path="/grades"
           element={
