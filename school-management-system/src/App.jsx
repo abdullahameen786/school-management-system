@@ -26,6 +26,7 @@ import StudentLayout from "./components/layout/StudentLayout";
 import StudentDashboardHome from "./pages/student/StudentDashboardHome";
 import StudentAttendanceView from "./pages/student/StudentAttendanceView";
 import StudentAssignmentsView from "./pages/student/StudentAssignmentsView";
+import StudentGradesView from "./pages/student/StudentGradesView";
 //auth/login
 import Login from "./pages/auth/Login";
 
@@ -75,14 +76,7 @@ const StudentDashboard = () => {
         {/* Baseline Root Page for Student */}
         <Route path="/" element={<StudentDashboardHome />} />
         <Route path="/attendance" element={<StudentAttendanceView />} />
-        <Route
-          path="/grades"
-          element={
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-              <h1 className="text-2xl font-bold text-slate-800">My Grades</h1>
-            </div>
-          }
-        />
+        <Route path="/grades" element={<StudentGradesView />} />
         <Route path="/assignments" element={<StudentAssignmentsView />} />
         <Route
           path="/announcements"
