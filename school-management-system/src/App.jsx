@@ -25,6 +25,7 @@ import GradebookPortal from "./pages/teacher/GradebookPortal";
 import StudentLayout from "./components/layout/StudentLayout";
 import StudentDashboardHome from "./pages/student/StudentDashboardHome";
 import StudentAttendanceView from "./pages/student/StudentAttendanceView";
+import StudentAssignmentsView from "./pages/student/StudentAssignmentsView";
 //auth/login
 import Login from "./pages/auth/Login";
 
@@ -82,16 +83,7 @@ const StudentDashboard = () => {
             </div>
           }
         />
-        <Route
-          path="/assignments"
-          element={
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-              <h1 className="text-2xl font-bold text-slate-800">
-                Assignments Hub
-              </h1>
-            </div>
-          }
-        />
+        <Route path="/assignments" element={<StudentAssignmentsView />} />
         <Route
           path="/announcements"
           element={
