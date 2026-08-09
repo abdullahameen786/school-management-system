@@ -4,12 +4,12 @@ import { collection, query, where, getDocs, addDoc, deleteDoc, updateDoc, doc } 
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../../firebase/config';
 import { useAuth } from '../../context/AuthContext';
-import { Plus, Clipboard, Calendar, FileText, Trash2, ShieldAlert, BookOpen, X, FileUp, Paperclip, Loader2, Edit2 } from 'lucide-react';
+import { Plus, Clipboard, Calendar, FileText, Trash2, ShieldAlert, BookOpen, X, FileUp, Paperclip, Loader2, Edit2, Layers, GraduationCap } from 'lucide-react';
 
 const AssignmentsHub = () => {
   const { user } = useAuth();
   const [myClasses, setMyClasses] = useState([]);
-  const [selectedClass, setSelectedClass] = useState('');
+  const [selectedClassFilter, setSelectedClassFilter] = useState('all');
   const [assignments, setAssignments] = useState([]);
   const [loading, setLoading] = useState(true);
   
@@ -17,8 +17,10 @@ const AssignmentsHub = () => {
   const [submitLoading, setSubmitLoading] = useState(false);
   const [editingAssignmentId, setEditingAssignmentId] = useState(null); 
   
-  // UPGRADED: Added dueTime field
   const [formData, setFormData] = useState({ 
+    gradeClass: 'Class 8',
+    section: 'A',
+    subjectName: '',
     title: '', 
     description: '', 
     maxMarks: '10', 
@@ -31,6 +33,8 @@ const AssignmentsHub = () => {
   const [selectedFile, setSelectedFile] = useState(null);
   const [fileError, setFileError] = useState('');
 
+  const schoolGrades = ['Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5', 'Class 6', 'Class 7', 'Class 8', 'Class 9', 'Class 10'];
+  const sections = ['A', 'B', 'C', 'D'];
   const allowedExtensions = ['pdf', 'doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx', 'zip'];
 
   useEffect(() => {
@@ -40,9 +44,6 @@ const AssignmentsHub = () => {
         const snap = await getDocs(q);
         const fetched = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         setMyClasses(fetched);
-        if (fetched.length > 0) {
-          setSelectedClass(fetched[0].id);
-        }
       } catch (error) {
         console.error("Error loading classes:", error);
       }
@@ -51,12 +52,16 @@ const AssignmentsHub = () => {
   }, [user]);
 
   const fetchAssignments = async () => {
-    if (!selectedClass) return;
     setLoading(true);
     try {
-      const q = query(collection(db, 'assignments'), where('classId', '==', selectedClass));
+      const q = query(collection(db, 'assignments'), where('teacherId', '==', user.uid));
       const snap = await getDocs(q);
-      const fetched = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      let fetched = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      
+      if (selectedClassFilter !== 'all') {
+        fetched = fetched.filter(item => item.gradeClass === selectedClassFilter);
+      }
+
       fetched.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
       setAssignments(fetched);
     } catch (error) {
@@ -67,18 +72,41 @@ const AssignmentsHub = () => {
   };
 
   useEffect(() => {
-    fetchAssignments();
-  }, [selectedClass]);
+    if (user?.uid) {
+      fetchAssignments();
+    }
+  }, [selectedClassFilter, user]);
 
-  // UPGRADED: Populate dueTime on Edit
+  const handleOpenAddModal = () => {
+    setEditingAssignmentId(null);
+    setSelectedFile(null);
+    setFileError('');
+    setFormData({
+      gradeClass: 'Class 8',
+      section: 'A',
+      subjectName: myClasses[0]?.subjectName || '',
+      title: '',
+      description: '',
+      maxMarks: '10',
+      dueDate: '',
+      dueTime: '',
+      attachmentUrl: '',
+      attachmentName: ''
+    });
+    setIsModalOpen(true);
+  };
+
   const handleEditClick = (task) => {
     setEditingAssignmentId(task.id);
     setFormData({
+      gradeClass: task.gradeClass || 'Class 8',
+      section: task.section || 'A',
+      subjectName: task.subjectName || '',
       title: task.title,
       description: task.description,
       maxMarks: task.maxMarks.toString(),
       dueDate: task.dueDate,
-      dueTime: task.dueTime || '', // Map existing time if available
+      dueTime: task.dueTime || '', 
       attachmentUrl: task.attachmentUrl || '',
       attachmentName: task.attachmentName || ''
     });
@@ -97,7 +125,6 @@ const AssignmentsHub = () => {
     }
 
     const fileExtension = file.name.split('.').pop().toLowerCase();
-
     if (!allowedExtensions.includes(fileExtension)) {
       setFileError('Invalid format! Supported: PDF, DOCX, PPTX, XLSX, ZIP.');
       setSelectedFile(null);
@@ -105,7 +132,7 @@ const AssignmentsHub = () => {
     }
 
     if (file.size > 2 * 1024 * 1024) {
-      setFileError('File size triggers security blocker! Maximum allowed size is 2MB.');
+      setFileError('File size exceeds 2MB security limit.');
       setSelectedFile(null);
       return;
     }
@@ -124,6 +151,11 @@ const AssignmentsHub = () => {
 
   const handlePublish = async (e) => {
     e.preventDefault();
+    if (!formData.subjectName.trim()) {
+      alert("Please enter a subject name.");
+      return;
+    }
+
     setSubmitLoading(true);
 
     try {
@@ -132,19 +164,28 @@ const AssignmentsHub = () => {
 
       if (selectedFile) {
         finalAttachmentName = selectedFile.name;
-        const storageRef = ref(storage, `assignments/${selectedClass}/${Date.now()}_${selectedFile.name}`);
+        const storageRef = ref(storage, `assignments/${formData.gradeClass}_${formData.section}/${Date.now()}_${selectedFile.name}`);
         const uploadSnapshot = await uploadBytes(storageRef, selectedFile);
         finalAttachmentUrl = await getDownloadURL(uploadSnapshot.ref);
       }
 
-      // Payload include dueTime
+      const matchedClass = myClasses.find(c => 
+        (c.gradeClass === formData.gradeClass || c.className === formData.gradeClass) &&
+        c.section === formData.section &&
+        (c.subjectName?.toLowerCase() === formData.subjectName.trim().toLowerCase() || c.className?.toLowerCase() === formData.subjectName.trim().toLowerCase())
+      );
+
       const payload = {
-        classId: selectedClass,
-        title: formData.title,
-        description: formData.description,
+        teacherId: user.uid,
+        classId: matchedClass ? matchedClass.id : '',
+        gradeClass: formData.gradeClass,
+        section: formData.section,
+        subjectName: formData.subjectName.trim(),
+        title: formData.title.trim(),
+        description: formData.description.trim(),
         maxMarks: parseInt(formData.maxMarks),
         dueDate: formData.dueDate,
-        dueTime: formData.dueTime, // Saving Time Data
+        dueTime: formData.dueTime, 
         attachmentUrl: finalAttachmentUrl,
         attachmentName: finalAttachmentName,
       };
@@ -161,21 +202,13 @@ const AssignmentsHub = () => {
         });
       }
 
-      closeModal();
+      setIsModalOpen(false);
       fetchAssignments();
     } catch (error) {
       console.error("Error saving assignment:", error);
     } finally {
       setSubmitLoading(false);
     }
-  };
-
-  const closeModal = () => {
-    setIsModalOpen(false);
-    setEditingAssignmentId(null);
-    setSelectedFile(null);
-    setFileError('');
-    setFormData({ title: '', description: '', maxMarks: '10', dueDate: '', dueTime: '', attachmentUrl: '', attachmentName: '' });
   };
 
   const handleDelete = async (id) => {
@@ -189,7 +222,6 @@ const AssignmentsHub = () => {
     }
   };
 
-  // Helper to elegantly format 24h time to 12h AM/PM format (Optional but nice)
   const formatTime = (timeStr) => {
     if (!timeStr) return '';
     const [hourString, minute] = timeStr.split(':');
@@ -209,20 +241,20 @@ const AssignmentsHub = () => {
           <div className="flex items-center gap-2 bg-white px-4 py-2.5 rounded-xl border border-slate-200 shadow-sm w-full sm:w-auto">
             <BookOpen className="h-4 w-4 text-emerald-600" />
             <select
-              value={selectedClass}
-              onChange={(e) => setSelectedClass(e.target.value)}
+              value={selectedClassFilter}
+              onChange={(e) => setSelectedClassFilter(e.target.value)}
               className="bg-transparent border-none text-sm font-semibold text-slate-700 focus:outline-none cursor-pointer w-full"
             >
-              {myClasses.map(cls => (
-                <option key={cls.id} value={cls.id}>{cls.className} ({cls.section})</option>
+              <option value="all">All Classes</option>
+              {schoolGrades.map(grade => (
+                <option key={grade} value={grade}>{grade}</option>
               ))}
             </select>
           </div>
 
           <button 
-            onClick={() => setIsModalOpen(true)}
-            disabled={!selectedClass}
-            className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-emerald-700 transition-colors shadow-sm disabled:bg-emerald-400 cursor-pointer whitespace-nowrap"
+            onClick={handleOpenAddModal}
+            className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-emerald-700 transition-colors shadow-sm cursor-pointer whitespace-nowrap"
           >
             <Plus className="h-4 w-4" /> Add Task
           </button>
@@ -236,7 +268,7 @@ const AssignmentsHub = () => {
       ) : assignments.length === 0 ? (
         <div className="bg-white p-12 rounded-2xl border border-slate-200 text-center shadow-sm text-slate-400">
           <ShieldAlert className="h-8 w-8 mx-auto mb-2 text-slate-300" />
-          No assignments published for this class yet.
+          No assignments published yet.
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -265,7 +297,20 @@ const AssignmentsHub = () => {
                   <div className="h-9 w-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
                     <Clipboard className="h-4 w-4" />
                   </div>
-                  <h3 className="text-lg font-bold text-slate-800 line-clamp-1">{task.title}</h3>
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-800 line-clamp-1">{task.title}</h3>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md">
+                        <GraduationCap className="h-3 w-3" /> {task.gradeClass || 'Class'}
+                      </span>
+                      <span className="inline-flex items-center gap-1 text-[11px] font-bold text-sky-700 bg-sky-50 px-2 py-0.5 rounded-md">
+                        <Layers className="h-3 w-3" /> Sec {task.section || 'A'}
+                      </span>
+                      {task.subjectName && (
+                        <span className="text-xs font-semibold text-slate-500">• {task.subjectName}</span>
+                      )}
+                    </div>
+                  </div>
                 </div>
 
                 <p className="text-slate-600 text-sm leading-relaxed whitespace-pre-wrap line-clamp-3">{task.description}</p>
@@ -285,7 +330,6 @@ const AssignmentsHub = () => {
 
               <div className="flex justify-between items-center pt-4 border-t border-slate-100 text-xs font-semibold text-slate-400 mt-5">
                 <span className="flex items-center gap-1"><FileText className="h-3.5 w-3.5" /> Marks: <span className="text-slate-700">{task.maxMarks}</span></span>
-                {/* UPGRADED: Dynamic Date and Time Rendering */}
                 <span className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-rose-50 text-rose-600">
                   <Calendar className="h-3.5 w-3.5" /> Due: {task.dueDate} {task.dueTime ? `at ${formatTime(task.dueTime)}` : ''}
                 </span>
@@ -302,12 +346,47 @@ const AssignmentsHub = () => {
               <h3 className="text-lg font-bold text-slate-800">
                 {editingAssignmentId ? 'Edit Assignment' : 'Publish New Assignment'}
               </h3>
-              <button onClick={closeModal} className="text-slate-400 hover:text-slate-600 rounded-lg p-1 hover:bg-slate-50 transition-colors">
+              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 rounded-lg p-1 hover:bg-slate-50 transition-colors">
                 <X className="h-5 w-5" />
               </button>
             </div>
 
             <form onSubmit={handlePublish} className="p-6 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1">Class / Grade</label>
+                  <select
+                    value={formData.gradeClass}
+                    onChange={(e) => setFormData({ ...formData, gradeClass: e.target.value })}
+                    className="block w-full px-3 py-2.5 border border-slate-200 bg-slate-50 rounded-xl text-sm font-semibold text-slate-700 focus:outline-none focus:border-emerald-500 focus:bg-white cursor-pointer"
+                  >
+                    {schoolGrades.map(g => <option key={g} value={g}>{g}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1">Section</label>
+                  <select
+                    value={formData.section}
+                    onChange={(e) => setFormData({ ...formData, section: e.target.value })}
+                    className="block w-full px-3 py-2.5 border border-slate-200 bg-slate-50 rounded-xl text-sm font-semibold text-slate-700 focus:outline-none focus:border-emerald-500 focus:bg-white cursor-pointer"
+                  >
+                    {sections.map(s => <option key={s} value={s}>Section {s}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1">Subject Name</label>
+                <input
+                  type="text"
+                  required
+                  value={formData.subjectName}
+                  onChange={(e) => setFormData({ ...formData, subjectName: e.target.value })}
+                  className="block w-full px-3 py-2.5 border border-slate-200 bg-slate-50 rounded-xl text-sm focus:outline-none focus:border-emerald-500 focus:bg-white"
+                  placeholder="e.g. Mathematics, English, Physics..."
+                />
+              </div>
+
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-1">Task Title</label>
                 <input
@@ -316,7 +395,7 @@ const AssignmentsHub = () => {
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                   className="block w-full px-3 py-2.5 border border-slate-200 bg-slate-50 rounded-xl text-sm focus:outline-none focus:border-emerald-500 focus:bg-white"
-                  placeholder="e.g. Assignment 1: Word Embeddings"
+                  placeholder="e.g. Assignment 1: Chapter Review"
                 />
               </div>
 
@@ -378,7 +457,6 @@ const AssignmentsHub = () => {
                 {fileError && <p className="text-xs font-semibold text-rose-600 mt-1.5 flex items-center gap-1">⚠️ {fileError}</p>}
               </div>
 
-              {/* UPGRADED: 3-Column Grid for Metrics, Date, and Time */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-1">Max Marks</label>
@@ -416,7 +494,7 @@ const AssignmentsHub = () => {
               <div className="flex justify-end gap-3 pt-4 border-t border-slate-100 mt-6">
                 <button
                   type="button"
-                  onClick={closeModal}
+                  onClick={() => setIsModalOpen(false)}
                   className="px-4 py-2.5 border border-slate-200 text-slate-600 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-colors cursor-pointer"
                 >
                   Cancel

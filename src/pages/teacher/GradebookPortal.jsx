@@ -42,9 +42,25 @@ const GradebookPortal = () => {
   const fetchEvaluations = async () => {
     if (!selectedClass) return;
     try {
-      const qA = query(collection(db, 'assignments'), where('classId', '==', selectedClass));
+      const activeClassObj = myClasses.find(c => c.id === selectedClass);
+      if (!activeClassObj) return;
+
+      const gradeToCheck = activeClassObj.gradeClass || activeClassObj.className;
+      const sectionToCheck = activeClassObj.section;
+
+      const qA = query(collection(db, 'assignments'), where('teacherId', '==', user.uid));
       const snapA = await getDocs(qA);
-      const fetchedAssignments = snapA.docs.map(doc => ({ id: doc.id, ...doc.data(), type: 'assignment' }));
+      
+      const fetchedAssignments = snapA.docs
+        .map(doc => ({ id: doc.id, ...doc.data(), type: 'assignment' }))
+        .filter(a => {
+          const matchesGrade = (a.gradeClass === gradeToCheck);
+          const matchesSec = (a.section === sectionToCheck);
+          const matchesClassId = (a.classId === selectedClass);
+
+          return matchesClassId || (matchesGrade && matchesSec);
+        });
+
       setAssignments(fetchedAssignments);
       
       const qE = query(collection(db, 'exams'), where('classId', '==', selectedClass));
@@ -64,12 +80,14 @@ const GradebookPortal = () => {
   };
 
   useEffect(() => {
-    fetchEvaluations();
-  }, [selectedClass]);
+    if (myClasses.length > 0) {
+      fetchEvaluations();
+    }
+  }, [selectedClass, myClasses]);
 
   useEffect(() => {
     const fetchStudentsAndGrades = async () => {
-      if (!selectedClass || !selectedEvaluation) {
+      if (!selectedClass) {
         setStudents([]);
         setLoading(false);
         return;
@@ -77,19 +95,33 @@ const GradebookPortal = () => {
       setLoading(true);
       setSuccessMsg('');
       try {
+        const activeClassObj = myClasses.find(c => c.id === selectedClass);
+        const targetGrade = activeClassObj?.gradeClass || activeClassObj?.className;
+        const targetSection = activeClassObj?.section;
+
         const sQuery = query(collection(db, 'users'), where('role', '==', 'student'));
         const sSnap = await getDocs(sQuery);
-        const fetchedStudents = sSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        setStudents(fetchedStudents);
+        const allStudents = sSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-        const gQuery = query(collection(db, 'grades'), where('evaluationId', '==', selectedEvaluation));
-        const gSnap = await getDocs(gQuery);
-        const fetchedGrades = {};
-        gSnap.forEach(doc => {
-          const data = doc.data();
-          fetchedGrades[data.studentId] = data.obtainedMarks; 
+        const enrolledStudents = allStudents.filter(student => {
+          if (!targetGrade || !targetSection) return true;
+          return student.className === targetGrade && student.section === targetSection;
         });
-        setGradesMap(fetchedGrades);
+
+        setStudents(enrolledStudents);
+
+        if (selectedEvaluation) {
+          const gQuery = query(collection(db, 'grades'), where('evaluationId', '==', selectedEvaluation));
+          const gSnap = await getDocs(gQuery);
+          const fetchedGrades = {};
+          gSnap.forEach(doc => {
+            const data = doc.data();
+            fetchedGrades[data.studentId] = data.obtainedMarks; 
+          });
+          setGradesMap(fetchedGrades);
+        } else {
+          setGradesMap({});
+        }
       } catch (error) {
         console.error("Error pulling grading sheets:", error);
       } finally {
@@ -98,7 +130,7 @@ const GradebookPortal = () => {
     };
 
     fetchStudentsAndGrades();
-  }, [selectedClass, selectedEvaluation]);
+  }, [selectedClass, selectedEvaluation, myClasses]);
 
   const handleCreateExam = async (e) => {
     e.preventDefault();
@@ -138,7 +170,6 @@ const GradebookPortal = () => {
     try {
       const promises = students.map(student => {
         const score = gradesMap[student.id];
-        // UPGRADED: Strict checks for empty strings and invalid numbers
         if (score === undefined || score === '') return Promise.resolve();
         const parsedScore = parseFloat(score);
         if (isNaN(parsedScore)) return Promise.resolve(); 
@@ -189,7 +220,11 @@ const GradebookPortal = () => {
               onChange={(e) => setSelectedClass(e.target.value)}
               className="bg-transparent border-none text-sm font-semibold text-slate-700 focus:outline-none cursor-pointer w-full"
             >
-              {myClasses.map(c => <option key={c.id} value={c.id}>{c.className} ({c.section})</option>)}
+              {myClasses.map(c => (
+                <option key={c.id} value={c.id}>
+                  {c.gradeClass || 'Class'} - {c.subjectName || c.className} (Sec {c.section || 'A'})
+                </option>
+              ))}
             </select>
           </div>
 
@@ -215,7 +250,7 @@ const GradebookPortal = () => {
                   {assignments.length > 0 && (
                     <optgroup label="Coursework Assignments">
                       {assignments.map(a => (
-                        <option key={a.id} value={a.id}>📋 {a.title}</option>
+                        <option key={a.id} value={a.id}>📋 {a.title} ({a.subjectName || ''})</option>
                       ))}
                     </optgroup>
                   )}
@@ -281,14 +316,13 @@ const GradebookPortal = () => {
                 <tr>
                   <td colSpan="3" className="px-6 py-12 text-center text-slate-500">
                     <AlertCircle className="h-8 w-8 mx-auto text-slate-400 mb-2" />
-                    No students currently cataloged in the registry database.
+                    No students currently enrolled in this class section.
                   </td>
                 </tr>
               ) : (
                 students.map((student) => {
                   const currentMark = gradesMap[student.id];
                   const maxMarks = activeEval?.maxMarks || 100;
-                  // Calculate dynamic percentage
                   const percentage = (currentMark !== undefined && currentMark !== '' && !isNaN(parseFloat(currentMark)))
                     ? ((parseFloat(currentMark) / maxMarks) * 100).toFixed(0)
                     : null;
@@ -311,14 +345,11 @@ const GradebookPortal = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right">
                         <div className="flex items-center justify-end gap-3">
-                          {/* UPGRADED: Dynamic Percentage Display Badge */}
                           {percentage !== null && (
                             <span className="inline-flex items-center px-2 py-1 rounded-md text-[10px] font-bold bg-slate-100 text-slate-500 shadow-sm border border-slate-200">
                               {percentage}%
                             </span>
                           )}
-                          
-                          {/* UPGRADED: Strict Fallback undefined mapping to prevent Zero bug */}
                           <input
                             type="number"
                             min="0"

@@ -1,11 +1,11 @@
 // src/firebase/config.js
 import { initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
+import { getAuth } from "firebase/auth";
+import { getAnalytics } from "firebase/analytics";
 
-// Aapki real credentials configuration
-const firebaseConfig = {
+export const firebaseConfig = {
   apiKey: "AIzaSyCV3jJV5Fpl1nhBWg3a5VZaaEHJgOB9jEk",
   authDomain: "school-management-system-928be.firebaseapp.com",
   projectId: "school-management-system-928be",
@@ -15,10 +15,10 @@ const firebaseConfig = {
   measurementId: "G-E6SKRBP6JS"
 };
 
-// Initialize Firebase App
 const app = initializeApp(firebaseConfig);
-
-// Initialize and Export required app services
-export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
+export const auth = getAuth(app);
+export const analytics = getAnalytics(app);
+
+export default app;
