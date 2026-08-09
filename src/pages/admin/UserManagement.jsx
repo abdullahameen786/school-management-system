@@ -9,7 +9,7 @@ import { Plus, Search, Edit2, Trash2, ShieldAlert, X, Mail, User, Layers, BookOp
 const UserManagement = () => {
   const [activeTab, setActiveTab] = useState('teacher');
   const [users, setUsers] = useState([]);
-  const [searchQuery, setSearchQuery] = useState(''); // 🚀 Search query state add ki hai
+  const [searchQuery, setSearchQuery] = useState(''); 
   const [loading, setLoading] = useState(true);
   
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -19,7 +19,7 @@ const UserManagement = () => {
   const [formData, setFormData] = useState({ 
     name: '', 
     email: '', 
-    password: 'school123', 
+    password: '', // Default blank rakhein gey starting mein
     className: 'Class 8',
     section: 'A'
   });
@@ -46,10 +46,9 @@ const UserManagement = () => {
 
   useEffect(() => {
     fetchUsers();
-    setSearchQuery(''); // Tab switch hone par search query reset ho jaye
+    setSearchQuery(''); 
   }, [activeTab]);
 
-  // 🚀 Live Client-side Filter for Search Query
   const filteredUsers = users.filter(user => {
     const nameMatch = user.name?.toLowerCase().includes(searchQuery.toLowerCase());
     const emailMatch = user.email?.toLowerCase().includes(searchQuery.toLowerCase());
@@ -67,7 +66,7 @@ const UserManagement = () => {
     setFormData({
       name: user.name || '',
       email: user.email || '',
-      password: '', 
+      password: user.password || '', // 🚀 Existing plain text password load karein gey edit modal mein
       className: user.className || 'Class 8',
       section: user.section || 'A'
     });
@@ -92,7 +91,13 @@ const UserManagement = () => {
         payload.section = formData.section;
       }
 
+      // If password field has text, add it to the sync payload
+      if (formData.password) {
+        payload.password = formData.password.trim();
+      }
+
       if (editingUserId) {
+        // 🚀 Existing profile update including new password string replacement
         await updateDoc(doc(db, 'users', editingUserId), payload);
       } else {
         const secondaryApp = initializeApp(firebaseConfig, "SecondaryAuthApp");
@@ -108,13 +113,12 @@ const UserManagement = () => {
         await deleteApp(secondaryApp); 
 
         payload.createdAt = new Date().toISOString();
-        // 🚀 Firestore backup data integrity ke liye password field copy add kar di hai
         payload.password = formData.password || 'school123'; 
 
         await setDoc(doc(db, 'users', targetId), payload);
       }
 
-      setFormData({ name: '', email: '', password: 'school123', className: 'Class 8', section: 'A' });
+      setFormData({ name: '', email: '', password: '', className: 'Class 8', section: 'A' });
       setEditingUserId(null);
       setIsModalOpen(false);
       fetchUsers(); 
@@ -174,7 +178,6 @@ const UserManagement = () => {
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <Search className="h-4 w-4 text-slate-400" />
             </div>
-            {/* 🚀 Connected input with searchQuery state */}
             <input
               id="userSearchInput"
               name="userSearch"
@@ -207,7 +210,7 @@ const UserManagement = () => {
                     <div className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-slate-300 border-t-indigo-600"></div>
                   </td>
                 </tr>
-              ) : filteredUsers.length === 0 ? ( // 🚀 Uses filtered array here
+              ) : filteredUsers.length === 0 ? ( 
                 <tr>
                   <td colSpan={activeTab === 'student' ? '5' : '4'} className="px-6 py-12 text-center text-slate-500">
                     <ShieldAlert className="h-8 w-8 mx-auto text-slate-400 mb-3" />
@@ -282,7 +285,6 @@ const UserManagement = () => {
             </div>
 
             <form onSubmit={handleSaveUser} className="p-6 space-y-4">
-              {/* 🚀 Fixed inputs with proper htmlFor and matching ids/names */}
               <div>
                 <label htmlFor="fullNameInput" className="block text-sm font-semibold text-slate-700 mb-1">Full Name</label>
                 <div className="relative">
@@ -317,25 +319,28 @@ const UserManagement = () => {
                 </div>
               </div>
 
-              {!editingUserId && (
-                <div>
-                  <label htmlFor="tempPasswordInput" className="block text-sm font-semibold text-slate-700 mb-1">Temporary Password</label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400"><Lock className="h-4 w-4" /></div>
-                    <input
-                      id="tempPasswordInput"
-                      name="tempPassword"
-                      type="text"
-                      required
-                      value={formData.password}
-                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                      className="block w-full pl-10 pr-3 py-2.5 border border-slate-200 bg-slate-50 rounded-xl text-sm placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:bg-white focus:ring-1 focus:ring-indigo-500 transition-all"
-                      placeholder="e.g. school123"
-                    />
-                  </div>
-                  <p className="text-xs text-slate-400 mt-1">User will use this password to sign in for the first time.</p>
+              {/* 🚀 Changed logic: password option will now show up during BOTH creating and editing profiles */}
+              <div>
+                <label htmlFor="tempPasswordInput" className="block text-sm font-semibold text-slate-700 mb-1">
+                  {editingUserId ? 'Update Password' : 'Temporary Password'}
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400"><Lock className="h-4 w-4" /></div>
+                  <input
+                    id="tempPasswordInput"
+                    name="tempPassword"
+                    type="text"
+                    required
+                    value={formData.password}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    className="block w-full pl-10 pr-3 py-2.5 border border-slate-200 bg-slate-50 rounded-xl text-sm placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:bg-white focus:ring-1 focus:ring-indigo-500 transition-all"
+                    placeholder={editingUserId ? "Enter new password" : "e.g. school123"}
+                  />
                 </div>
-              )}
+                <p className="text-xs text-slate-400 mt-1">
+                  {editingUserId ? 'Leave it or modify to change the user login credentials.' : 'User will use this password to sign in for the first time.'}
+                </p>
+              </div>
 
               {activeTab === 'student' && (
                 <div className="grid grid-cols-2 gap-4">
