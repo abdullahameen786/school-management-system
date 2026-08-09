@@ -3,9 +3,11 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Login from './pages/auth/Login';
-//admin
-import AdminLayout from "./components/layout/AdminLayout";;
+
+// Admin Layout & Pages
+import AdminLayout from "./components/layout/AdminLayout";
 import AnalyticsOverview from './pages/admin/AnalyticsOverview';
+import UserManagement from './pages/admin/UserManagement'; // 🚀 Import added here
 
 // 🔒 Foolproof Protected Route Component
 const ProtectedRoute = ({ allowedRoles, children }) => {
@@ -52,8 +54,14 @@ function App() {
           >
             {/* Default Admin View Element */}
             <Route index element={<AnalyticsOverview />} />
-            {/* Baqi child admin routes yahan aayenge, jaise: */}
-            {/* <Route path="users" element={<UserManagement />} /> */}
+            
+            {/* 🚀 User Management Route Activated */}
+            <Route path="users" element={<UserManagement />} />
+            
+            {/* Baqi child admin routes yahan aayenge: */}
+            {/* <Route path="scheduling" element={<ClassScheduling />} /> */}
+            {/* <Route path="attendance" element={<TeacherAttendance />} /> */}
+            {/* <Route path="announcements" element={<Announcements />} /> */}
           </Route>
 
           {/* Fallback Catch-All Route */}
