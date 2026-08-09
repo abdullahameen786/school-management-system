@@ -21,6 +21,7 @@ import TeacherClasses from "./pages/teacher/TeacherClasses";
 import StudentAttendance from "./pages/teacher/StudentAttendance";
 import AssignmentsHub from "./pages/teacher/AssignmentsHub";
 import GradebookPortal from "./pages/teacher/GradebookPortal";
+import TeacherAnnouncementsView from './pages/teacher/TeacherAnnouncementsView';
 // Student
 import StudentLayout from "./components/layout/StudentLayout";
 import StudentDashboardHome from "./pages/student/StudentDashboardHome";
@@ -64,6 +65,7 @@ const TeacherDashboard = () => {
         <Route path="/attendance" element={<StudentAttendance />} />
         <Route path="/grades" element={<GradebookPortal />} />
         <Route path="/assignments" element={<AssignmentsHub />} />
+        <Route path="/announcements" element={<TeacherAnnouncementsView />} />
       </Routes>
     </TeacherLayout>
   );

@@ -1,6 +1,7 @@
 // src/components/layout/TeacherLayout.jsx
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Megaphone } from 'lucide-react';
 import { signOut } from 'firebase/auth';
 import { auth } from '../../firebase/config';
 import { useAuth } from '../../context/AuthContext';
@@ -29,6 +30,7 @@ const TeacherLayout = ({ children }) => {
     { name: 'Student Attendance', path: '/teacher/attendance', icon: CheckSquare },
     { name: 'Gradebook Portal', path: '/teacher/grades', icon: ClipboardList },
     { name: 'Assignments Hub', path: '/teacher/assignments', icon: Users },
+    { name: 'Notice Board', path: '/teacher/announcements', icon: Megaphone },
   ];
 
   return (
