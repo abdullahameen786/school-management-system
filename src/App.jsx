@@ -7,7 +7,8 @@ import Login from './pages/auth/Login';
 // Admin Layout & Pages
 import AdminLayout from "./components/layout/AdminLayout";
 import AnalyticsOverview from './pages/admin/AnalyticsOverview';
-import UserManagement from './pages/admin/UserManagement'; // 🚀 Import added here
+import UserManagement from './pages/admin/UserManagement';
+import ClassScheduling from './pages/admin/ClassScheduling';
 
 // 🔒 Foolproof Protected Route Component
 const ProtectedRoute = ({ allowedRoles, children }) => {
@@ -59,7 +60,7 @@ function App() {
             <Route path="users" element={<UserManagement />} />
             
             {/* Baqi child admin routes yahan aayenge: */}
-            {/* <Route path="scheduling" element={<ClassScheduling />} /> */}
+            <Route path="scheduling" element={<ClassScheduling />} /> 
             {/* <Route path="attendance" element={<TeacherAttendance />} /> */}
             {/* <Route path="announcements" element={<Announcements />} /> */}
           </Route>

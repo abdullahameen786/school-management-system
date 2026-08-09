@@ -237,7 +237,7 @@ const ClassScheduling = () => {
               <h3 className="text-lg font-bold text-slate-800">
                 {editingId ? 'Edit Subject Schedule' : 'Schedule New Subject'}
               </h3>
-              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 rounded-lg p-1 hover:bg-slate-50 transition-colors">
+              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 rounded-lg p-1 hover:bg-slate-50 transition-colors cursor-pointer">
                 <X className="h-5 w-5" />
               </button>
             </div>
@@ -245,8 +245,10 @@ const ClassScheduling = () => {
             <form onSubmit={handleSaveClass} className="p-6 space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-1">Class / Grade</label>
+                  <label htmlFor="gradeClassSelect" className="block text-sm font-semibold text-slate-700 mb-1">Class / Grade</label>
                   <select
+                    id="gradeClassSelect"
+                    name="gradeClass"
                     value={formData.gradeClass}
                     onChange={(e) => setFormData({ ...formData, gradeClass: e.target.value })}
                     className="block w-full px-3 py-2.5 border border-slate-200 bg-slate-50 rounded-xl text-sm font-semibold text-slate-700 focus:outline-none focus:border-indigo-500 focus:bg-white cursor-pointer"
@@ -256,8 +258,10 @@ const ClassScheduling = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-1">Section</label>
+                  <label htmlFor="sectionSelect" className="block text-sm font-semibold text-slate-700 mb-1">Section</label>
                   <select
+                    id="sectionSelect"
+                    name="section"
                     value={formData.section}
                     onChange={(e) => setFormData({ ...formData, section: e.target.value })}
                     className="block w-full px-3 py-2.5 border border-slate-200 bg-slate-50 rounded-xl text-sm font-semibold text-slate-700 focus:outline-none focus:border-indigo-500 focus:bg-white cursor-pointer"
@@ -268,8 +272,10 @@ const ClassScheduling = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1">Subject Name</label>
+                <label htmlFor="subjectNameInput" className="block text-sm font-semibold text-slate-700 mb-1">Subject Name</label>
                 <input
+                  id="subjectNameInput"
+                  name="subjectName"
                   type="text"
                   required
                   value={formData.subjectName}
@@ -281,8 +287,10 @@ const ClassScheduling = () => {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-1">Room / Lab No.</label>
+                  <label htmlFor="roomNoInput" className="block text-sm font-semibold text-slate-700 mb-1">Room / Lab No.</label>
                   <input
+                    id="roomNoInput"
+                    name="room"
                     type="text"
                     required
                     value={formData.room}
@@ -292,8 +300,10 @@ const ClassScheduling = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-1">Class Timing</label>
+                  <label htmlFor="classTimingInput" className="block text-sm font-semibold text-slate-700 mb-1">Class Timing</label>
                   <input
+                    id="classTimingInput"
+                    name="scheduleTime"
                     type="text"
                     required
                     value={formData.scheduleTime}
@@ -305,20 +315,26 @@ const ClassScheduling = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1">Assign Teacher</label>
+                <label htmlFor="teacherSelect" className="block text-sm font-semibold text-slate-700 mb-1">Assign Teacher</label>
                 <select
+                  id="teacherSelect"
+                  name="teacherId"
                   value={formData.teacherId}
                   onChange={(e) => setFormData({ ...formData, teacherId: e.target.value })}
                   className="block w-full px-3 py-2.5 border border-slate-200 bg-slate-50 rounded-xl text-sm font-semibold text-slate-700 focus:outline-none focus:border-indigo-500 focus:bg-white cursor-pointer"
                 >
-                  {teachers.map(t => (
-                    <option key={t.id} value={t.id}>{t.name} ({t.email})</option>
-                  ))}
+                  {teachers.length === 0 ? (
+                    <option value="">No teachers available</option>
+                  ) : (
+                    teachers.map(t => (
+                      <option key={t.id} value={t.id}>{t.name} ({t.email})</option>
+                    ))
+                  )}
                 </select>
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Select Days</label>
+                <span className="block text-sm font-semibold text-slate-700 mb-2">Select Days</span>
                 <div className="flex flex-wrap gap-2">
                   {weekDays.map(day => {
                     const isSelected = formData.days.includes(day);
