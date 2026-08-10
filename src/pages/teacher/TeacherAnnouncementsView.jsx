@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { collection, query, where, getDocs, addDoc, deleteDoc, doc } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import { useAuth } from '../../context/AuthContext';
-import { Calendar, Megaphone, AlertCircle, Plus, X, Loader2, BookOpen, Trash2, Layers } from 'lucide-react';
+import { Calendar, Megaphone, AlertCircle, Plus, X, Loader2, BookOpen, Trash2, Layers, GraduationCap } from 'lucide-react';
 
 const TeacherAnnouncementsView = () => {
   const { user } = useAuth();
@@ -11,16 +11,17 @@ const TeacherAnnouncementsView = () => {
   const [myClasses, setMyClasses] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Modal & Form States
+  // Modal & Form States with Class and Course options
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [submitLoading, setSubmitLoading] = useState(false);
   const [formData, setFormData] = useState({
-    classId: '',
+    targetClass: '',
+    targetCourse: '',
     title: '',
     content: ''
   });
 
-  // 1. Fetch Teacher's Assigned Classes for the form dropdown
+  // 1. Fetch Teacher's Assigned Classes for dropdown options
   useEffect(() => {
     const fetchClasses = async () => {
       try {
@@ -29,7 +30,11 @@ const TeacherAnnouncementsView = () => {
         const fetched = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         setMyClasses(fetched);
         if (fetched.length > 0) {
-          setFormData(prev => ({ ...prev, classId: fetched[0].id }));
+          setFormData(prev => ({ 
+            ...prev, 
+            targetClass: fetched[0].gradeClass || fetched[0].className || 'Class 8',
+            targetCourse: fetched[0].subjectName || fetched[0].className || 'General'
+          }));
         }
       } catch (error) {
         console.error("Error loading classes:", error);
@@ -38,17 +43,19 @@ const TeacherAnnouncementsView = () => {
     if (user?.uid) fetchClasses();
   }, [user]);
 
-  // 2. Fetch Announcements (Admin notices + Notices created by this teacher)
+  // Extract unique classes and courses from assigned roster
+  const uniqueClasses = Array.from(new Set(myClasses.map(c => c.gradeClass || c.className).filter(Boolean)));
+  const uniqueCourses = Array.from(new Set(myClasses.map(c => c.subjectName || c.className).filter(Boolean)));
+
+  // 2. Fetch Announcements
   const fetchAnnouncements = async () => {
     setLoading(true);
     try {
       const snap = await getDocs(collection(db, 'announcements'));
       const fetched = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       
-      // Filter for announcements relevant to teachers OR created by this teacher
       const teacherAnnouncements = fetched.filter(item => {
         const target = String(item.targetGroup || item.targetRole || item.audience || item.role || '').trim().toLowerCase();
-        // Show if it's targeted for teachers/all OR if created by the logged-in teacher
         if (target.includes('teacher') || target === 'all' || target === '' || item.teacherId === user.uid) {
           return true;
         }
@@ -73,29 +80,31 @@ const TeacherAnnouncementsView = () => {
   // 3. Handle Publishing Student Announcement
   const handleCreateAnnouncement = async (e) => {
     e.preventDefault();
-    if (!formData.classId) {
-      alert("Please select a target class.");
+    if (!formData.targetClass || !formData.targetCourse) {
+      alert("Please select both a target class and course.");
       return;
     }
 
     setSubmitLoading(true);
     try {
-      const selectedClassObj = myClasses.find(c => c.id === formData.classId);
-
       await addDoc(collection(db, 'announcements'), {
         title: formData.title.trim(),
         content: formData.content.trim(),
         teacherId: user.uid,
         teacherName: user.name || 'Instructor',
-        classId: formData.classId,
-        className: selectedClassObj?.className || 'General Course',
-        section: selectedClassObj?.section || '',
-        targetGroup: 'student', // Targets students of this course
+        className: formData.targetClass,
+        subjectName: formData.targetCourse,
+        targetGroup: 'student', 
         createdAt: new Date().toISOString()
       });
 
       setIsModalOpen(false);
-      setFormData({ classId: myClasses[0]?.id || '', title: '', content: '' });
+      setFormData({ 
+        targetClass: uniqueClasses[0] || 'Class 8', 
+        targetCourse: uniqueCourses[0] || 'General', 
+        title: '', 
+        content: '' 
+      });
       fetchAnnouncements();
     } catch (error) {
       console.error("Error creating announcement:", error);
@@ -164,11 +173,16 @@ const TeacherAnnouncementsView = () => {
                       <Megaphone className="h-5 w-5" />
                     </div>
                     <div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <h3 className="text-lg font-bold text-slate-800">{item.title}</h3>
                         {item.className && (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100">
+                            <GraduationCap className="h-3 w-3" /> {item.className}
+                          </span>
+                        )}
+                        {item.subjectName && (
                           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-xs font-semibold bg-sky-50 text-sky-700 border border-sky-100">
-                            <Layers className="h-3 w-3" /> {item.className} {item.section ? `(${item.section})` : ''}
+                            <Layers className="h-3 w-3" /> {item.subjectName}
                           </span>
                         )}
                       </div>
@@ -187,40 +201,64 @@ const TeacherAnnouncementsView = () => {
         </div>
       )}
 
-      {/* Modal for Creating Student Announcement */}
+      {/* Modal for Creating Student Announcement with Class and Course options */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
           <div className="w-full max-w-md bg-white rounded-2xl shadow-xl border border-slate-100 transform transition-all animate-in fade-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
               <h3 className="text-lg font-bold text-slate-800">Broadcast Student Notice</h3>
-              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 rounded-lg p-1 hover:bg-slate-50 transition-colors">
+              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 rounded-lg p-1 hover:bg-slate-50 transition-colors cursor-pointer">
                 <X className="h-5 w-5" />
               </button>
             </div>
 
             <form onSubmit={handleCreateAnnouncement} className="p-6 space-y-4">
+              
+              {/* Option 1: Select Assigned Class */}
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1">Target Course / Section</label>
+                <label htmlFor="targetClassSelect" className="block text-sm font-semibold text-slate-700 mb-1">Select Assigned Class</label>
+                <div className="flex items-center gap-2 bg-slate-50 px-3 py-2.5 border border-slate-200 rounded-xl">
+                  <GraduationCap className="h-4 w-4 text-emerald-600" />
+                  <select
+                    id="targetClassSelect"
+                    name="targetClass"
+                    required
+                    value={formData.targetClass}
+                    onChange={(e) => setFormData({ ...formData, targetClass: e.target.value })}
+                    className="bg-transparent border-none text-sm font-semibold text-slate-700 focus:outline-none cursor-pointer w-full"
+                  >
+                    {uniqueClasses.map(clsName => (
+                      <option key={clsName} value={clsName}>{clsName}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Option 2: Select Assigned Course */}
+              <div>
+                <label htmlFor="targetCourseSelect" className="block text-sm font-semibold text-slate-700 mb-1">Select Assigned Course / Subject</label>
                 <div className="flex items-center gap-2 bg-slate-50 px-3 py-2.5 border border-slate-200 rounded-xl">
                   <BookOpen className="h-4 w-4 text-emerald-600" />
                   <select
+                    id="targetCourseSelect"
+                    name="targetCourse"
                     required
-                    value={formData.classId}
-                    onChange={(e) => setFormData({ ...formData, classId: e.target.value })}
+                    value={formData.targetCourse}
+                    onChange={(e) => setFormData({ ...formData, targetCourse: e.target.value })}
                     className="bg-transparent border-none text-sm font-semibold text-slate-700 focus:outline-none cursor-pointer w-full"
                   >
-                    {myClasses.map(cls => (
-                      <option key={cls.id} value={cls.id}>
-                        {cls.className} {cls.section ? `(Section ${cls.section})` : ''}
-                      </option>
+                    {uniqueCourses.map(courseName => (
+                      <option key={courseName} value={courseName}>{courseName}</option>
                     ))}
                   </select>
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1">Notice Title</label>
+                <label htmlFor="noticeTitleInput" className="block text-sm font-semibold text-slate-700 mb-1">Notice Title</label>
                 <input
+                  id="noticeTitleInput"
+                  name="title"
                   type="text"
                   required
                   value={formData.title}
@@ -231,8 +269,10 @@ const TeacherAnnouncementsView = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1">Message Content</label>
+                <label htmlFor="noticeContentTextarea" className="block text-sm font-semibold text-slate-700 mb-1">Message Content</label>
                 <textarea
+                  id="noticeContentTextarea"
+                  name="content"
                   required
                   rows={4}
                   value={formData.content}

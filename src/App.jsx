@@ -18,9 +18,7 @@ import TeacherClasses from './pages/teacher/TeacherClasses';
 import StudentAttendance from './pages/teacher/StudentAttendance';
 import GradebookPortal from './pages/teacher/GradebookPortal';
 import AssignmentsHub from './pages/teacher/AssignmentsHub';
-
-// Placeholder Component for Remaining Teacher Sub-Page
-const TeacherAnnouncements = () => <div className="text-xl font-bold text-slate-800">Teacher Notice Board</div>;
+import TeacherAnnouncementsView from './pages/teacher/TeacherAnnouncementsView'; // 🚀 Imported Teacher Announcements View
 
 // 🔒 Foolproof Protected Route Component
 const ProtectedRoute = ({ allowedRoles, children }) => {
@@ -82,7 +80,7 @@ function App() {
             <Route path="attendance" element={<StudentAttendance />} />
             <Route path="grades" element={<GradebookPortal />} />
             <Route path="assignments" element={<AssignmentsHub />} />
-            <Route path="announcements" element={<TeacherAnnouncements />} />
+            <Route path="announcements" element={<TeacherAnnouncementsView />} />
           </Route>
 
           {/* Fallback Catch-All Route */}
