@@ -7,6 +7,7 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 
 const AnalyticsOverview = () => {
   const [stats, setStats] = useState({ teachers: 0, students: 0, courses: 0, fees: 'Rs. 480K' });
+  const [dynamicDistribution, setDynamicDistribution] = useState([]);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState('');
 
@@ -19,59 +20,79 @@ const AnalyticsOverview = () => {
     { month: 'Jun', Collections: 480000 },
   ];
 
-  const distributionData = [
-    { name: 'Class 8', Students: 120, Teachers: 8 },
-    { name: 'Class 9', Students: 98, Teachers: 6 },
-    { name: 'Class 10', Students: 75, Teachers: 4 },
-  ];
-
   useEffect(() => {
-    const fetchCounts = async () => {
+    const fetchDashboardMetrics = async () => {
       try {
         setLoading(true);
         setErrorMsg('');
 
-        let teacherCount = 0;
-        try {
-          const teacherQuery = query(collection(db, 'users'), where('role', '==', 'teacher'));
-          const teacherSnap = await getDocs(teacherQuery);
-          teacherCount = teacherSnap.size;
-        } catch (err) {
-          console.warn("Could not fetch teachers:", err);
-        }
-        
-        let studentCount = 0;
-        try {
-          const studentQuery = query(collection(db, 'users'), where('role', '==', 'student'));
-          const studentSnap = await getDocs(studentQuery);
-          studentCount = studentSnap.size;
-        } catch (err) {
-          console.warn("Could not fetch students:", err);
-        }
+        // 1. Fetch Users Data Array
+        const usersSnap = await getDocs(collection(db, 'users'));
+        const allUsers = usersSnap.docs.map(doc => doc.data());
 
-        let classCount = 0;
-        try {
-          const classesSnap = await getDocs(collection(db, 'classes'));
-          classCount = classesSnap.size;
-        } catch (err) {
-          console.warn("Could not fetch classes:", err);
-        }
+        const totalTeachers = allUsers.filter(u => u.role === 'teacher').length;
+        const totalStudents = allUsers.filter(u => u.role === 'student').length;
 
+        // 2. Fetch Classes
+        const classesSnap = await getDocs(collection(db, 'classes'));
+        const allClasses = classesSnap.docs.map(doc => doc.data());
+        const totalClasses = classesSnap.size;
+
+        // 🚀 3. UPDATED AGGREGATION LOGIC: Group strictly by Class Name only (Ignore Sections)
+        const classMap = {};
+
+        // Create groups based on active scheduled classes
+        allClasses.forEach(cls => {
+          const className = cls.gradeClass || cls.className;
+          if (!classMap[className]) {
+            classMap[className] = {
+              name: className,
+              Students: 0,
+              uniqueTeachers: new Set() // Set ensures a teacher isn't counted twice for the same class
+            };
+          }
+          if (cls.teacherId) {
+            classMap[className].uniqueTeachers.add(cls.teacherId);
+          }
+        });
+
+        // Count students and assign them to their respective merged class group
+        allUsers.forEach(u => {
+          if (u.role === 'student') {
+            const studentClass = u.className;
+            if (studentClass && classMap[studentClass]) {
+              classMap[studentClass].Students += 1;
+            }
+          }
+        });
+
+        // Convert the map back to a clean array for Recharts
+        const calculatedDistribution = Object.values(classMap).map(group => ({
+          name: group.name,
+          Students: group.Students,
+          Teachers: group.uniqueTeachers.size
+        }));
+
+        // Sort dynamically (Class 1, Class 2... Class 10)
+        calculatedDistribution.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+
+        setDynamicDistribution(calculatedDistribution);
         setStats({
-          teachers: teacherCount,
-          students: studentCount,
-          courses: classCount, 
+          teachers: totalTeachers,
+          students: totalStudents,
+          courses: totalClasses,
           fees: 'Rs. 480K'
         });
+
       } catch (error) {
-        console.error("Error reading analytics overview: ", error);
-        setErrorMsg('Failed to load dashboard metrics. Please check Firestore rules.');
+        console.error("Error generating metrics matrix: ", error);
+        setErrorMsg('Failed to aggregate analytical data streams. Check security rules permissions.');
       } finally {
         setLoading(false);
       }
     };
 
-    fetchCounts();
+    fetchDashboardMetrics();
   }, []);
 
   const cardItems = [
@@ -102,6 +123,7 @@ const AnalyticsOverview = () => {
         </div>
       )}
 
+      {/* Stats Cards Section */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
         {cardItems.map((card, index) => {
           const Icon = card.icon;
@@ -119,7 +141,9 @@ const AnalyticsOverview = () => {
         })}
       </div>
 
+      {/* Graphical Analytics Charts Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left: Fee Collection Streams */}
         <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-xs lg:col-span-2 space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div>
@@ -149,22 +173,29 @@ const AnalyticsOverview = () => {
           </div>
         </div>
 
+        {/* Right: Dynamic Grade Level Ratios */}
         <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
           <div>
             <h3 className="text-base sm:text-lg font-bold text-slate-800">Grade Level Ratios</h3>
-            <p className="text-slate-400 text-xs">Strength distribution array</p>
+            <p className="text-slate-400 text-xs">Strength distribution array (Active DB Classes Only)</p>
           </div>
-          <div className="h-64 sm:h-72 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={distributionData} margin={{ top: 10, right: 0, left: -25, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11 }} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11 }} />
-                <Tooltip contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '12px' }} />
-                <Bar dataKey="Students" fill="#6366f1" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="Teachers" fill="#34d399" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+          <div className="h-64 sm:h-72 w-full flex items-center justify-center">
+            {dynamicDistribution.length === 0 ? (
+              <div className="text-xs text-slate-400 font-medium italic text-center p-6 border border-dashed border-slate-200 rounded-xl bg-slate-50/50 w-full">
+                No active schedules found inside classes collection to display metrics.
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={dynamicDistribution} margin={{ top: 10, right: 0, left: -25, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 10 }} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11 }} allowDecimals={false} />
+                  <Tooltip contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '12px' }} />
+                  <Bar dataKey="Students" fill="#6366f1" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="Teachers" fill="#34d399" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
           </div>
         </div>
       </div>

@@ -10,6 +10,7 @@ import AnalyticsOverview from './pages/admin/AnalyticsOverview';
 import UserManagement from './pages/admin/UserManagement';
 import ClassScheduling from './pages/admin/ClassScheduling';
 import TeacherAttendance from './pages/admin/TeacherAttendance';
+import Announcements from './pages/admin/Announcements';
 
 // 🔒 Foolproof Protected Route Component
 const ProtectedRoute = ({ allowedRoles, children }) => {
@@ -58,7 +59,7 @@ function App() {
             <Route path="users" element={<UserManagement />} />
             <Route path="scheduling" element={<ClassScheduling />} /> 
             <Route path="attendance" element={<TeacherAttendance />} />
-            {/* <Route path="announcements" element={<Announcements />} /> */}
+            <Route path="announcements" element={<Announcements />} />
           </Route>
 
           {/* Fallback Catch-All Route */}

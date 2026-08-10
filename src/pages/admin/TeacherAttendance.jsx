@@ -5,13 +5,21 @@ import { db } from '../../firebase/config';
 import { useAuth } from '../../context/AuthContext';
 import { Calendar as CalendarIcon, Check, X, Clock, AlertCircle } from 'lucide-react';
 
+// 🚀 Helper function to get correct local date string (YYYY-MM-DD) without UTC lag
+const getLocalDateString = () => {
+  const localDate = new Date();
+  const offset = localDate.getTimezoneOffset();
+  const adjustedDate = new Date(localDate.getTime() - (offset * 60 * 1000));
+  return adjustedDate.toISOString().split('T')[0];
+};
+
 const TeacherAttendance = () => {
   const { user } = useAuth();
   const [teachers, setTeachers] = useState([]);
   const [loading, setLoading] = useState(true);
   
-  // Default to today's date (YYYY-MM-DD format for input)
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  // Default to today's local date instead of UTC ISO string
+  const [selectedDate, setSelectedDate] = useState(getLocalDateString());
   
   // Store attendance status map: { teacherId: 'present' | 'absent' | 'late' }
   const [attendanceMap, setAttendanceMap] = useState({});
@@ -94,7 +102,7 @@ const TeacherAttendance = () => {
             name="attendanceDate"
             type="date" 
             value={selectedDate}
-            max={new Date().toISOString().split('T')[0]} // Block future dates
+            max={getLocalDateString()} // Blocks actual local future dates perfectly
             onChange={(e) => setSelectedDate(e.target.value)}
             className="bg-transparent border-none focus:outline-none text-sm font-semibold text-slate-700 cursor-pointer"
           />
