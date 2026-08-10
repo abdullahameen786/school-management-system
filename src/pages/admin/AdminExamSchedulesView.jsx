@@ -60,7 +60,7 @@ const AdminExamSchedulesView = () => {
   const handleSaveExam = async (e) => {
     e.preventDefault();
     if (!formData.dueDate) {
-      toast.error("Please select a valid due date.");
+      toast.error("Please select a valid due date and time.");
       return;
     }
 
@@ -157,7 +157,7 @@ const AdminExamSchedulesView = () => {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-800">Midterms & Final Exam Scheduling</h1>
-          <p className="text-slate-500 text-sm mt-1">Configure Mid-1, Mid-2, and Final examinations with strict submission deadlines.</p>
+          <p className="text-slate-500 text-sm mt-1">Configure Mid-1, Mid-2, and Final examinations with exact date and time deadlines.</p>
         </div>
 
         {/* Class Selector */}
@@ -222,15 +222,15 @@ const AdminExamSchedulesView = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1">Submission Due Date</label>
+              <label className="block text-sm font-semibold text-slate-700 mb-1">Due Date & Time</label>
               <input
-                type="date"
+                type="datetime-local"
                 required
                 value={formData.dueDate}
                 onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
                 className="block w-full px-3 py-2.5 border border-slate-200 bg-slate-50 rounded-xl text-sm font-semibold text-slate-700 focus:outline-none focus:border-indigo-500"
               />
-              <p className="text-[11px] text-slate-400 mt-1">Instructor grading window locks automatically after this date.</p>
+              <p className="text-[11px] text-slate-400 mt-1">Instructor grading window locks automatically after this date and time.</p>
             </div>
 
             <button
@@ -255,7 +255,7 @@ const AdminExamSchedulesView = () => {
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Exam Type</th>
                   <th className="px-6 py-3 text-center text-xs font-semibold text-slate-500 uppercase">Max Scale</th>
-                  <th className="px-6 py-3 text-center text-xs font-semibold text-slate-500 uppercase">Due Deadline</th>
+                  <th className="px-6 py-3 text-center text-xs font-semibold text-slate-500 uppercase">Due Deadline (Date & Time)</th>
                   <th className="px-6 py-3 text-right text-xs font-semibold text-slate-500 uppercase">Actions</th>
                 </tr>
               </thead>
@@ -275,7 +275,8 @@ const AdminExamSchedulesView = () => {
                   </tr>
                 ) : (
                   exams.map((exam) => {
-                    const isPassed = exam.dueDate && new Date().toISOString().split('T')[0] > exam.dueDate;
+                    const isPassed = exam.dueDate && new Date() > new Date(exam.dueDate);
+                    const formattedDeadline = exam.dueDate ? exam.dueDate.replace('T', ' at ') : 'No Due Date';
                     return (
                       <tr key={exam.id} className="hover:bg-slate-50/50 transition-colors">
                         <td className="px-6 py-4 font-bold text-slate-800 flex items-center gap-2">
@@ -286,7 +287,7 @@ const AdminExamSchedulesView = () => {
                         </td>
                         <td className="px-6 py-4 text-center">
                           <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold ${isPassed ? 'bg-rose-50 text-rose-700 border border-rose-100' : 'bg-emerald-50 text-emerald-700 border border-emerald-100'}`}>
-                            <Clock className="h-3 w-3" /> {exam.dueDate || 'No Due Date'} {isPassed && '(Locked)'}
+                            <Clock className="h-3 w-3" /> {formattedDeadline} {isPassed && '(Locked)'}
                           </span>
                         </td>
                         <td className="px-6 py-4 text-right">
