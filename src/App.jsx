@@ -18,7 +18,17 @@ import TeacherClasses from './pages/teacher/TeacherClasses';
 import StudentAttendance from './pages/teacher/StudentAttendance';
 import GradebookPortal from './pages/teacher/GradebookPortal';
 import AssignmentsHub from './pages/teacher/AssignmentsHub';
-import TeacherAnnouncementsView from './pages/teacher/TeacherAnnouncementsView'; // 🚀 Imported Teacher Announcements View
+import TeacherAnnouncementsView from './pages/teacher/TeacherAnnouncementsView';
+
+// Student Layout & Placeholder Pages (Can be replaced with real page files later)
+import StudentLayout from './components/layout/StudentLayout';
+
+
+const StudentDashboard = () => <div className="text-xl font-bold text-slate-800">Student Dashboard</div>;
+const StudentAttendanceView = () => <div className="text-xl font-bold text-slate-800">My Attendance Portal</div>;
+const StudentGrades = () => <div className="text-xl font-bold text-slate-800">My Grades Portal</div>;
+const StudentAssignments = () => <div className="text-xl font-bold text-slate-800">Student Assignments Hub</div>;
+const StudentAnnouncements = () => <div className="text-xl font-bold text-slate-800">Student Notice Board</div>;
 
 // 🔒 Foolproof Protected Route Component
 const ProtectedRoute = ({ allowedRoles, children }) => {
@@ -81,6 +91,22 @@ function App() {
             <Route path="grades" element={<GradebookPortal />} />
             <Route path="assignments" element={<AssignmentsHub />} />
             <Route path="announcements" element={<TeacherAnnouncementsView />} />
+          </Route>
+
+          {/* 🔐 Secure Student Dashboard Flow */}
+          <Route 
+            path="/student" 
+            element={
+              <ProtectedRoute allowedRoles={['student']}>
+                <StudentLayout />
+              </ProtectedRoute>
+            }
+          >
+            <Route index element={<StudentDashboard />} />
+            <Route path="attendance" element={<StudentAttendanceView />} />
+            <Route path="grades" element={<StudentGrades />} />
+            <Route path="assignments" element={<StudentAssignments />} />
+            <Route path="announcements" element={<StudentAnnouncements />} />
           </Route>
 
           {/* Fallback Catch-All Route */}
