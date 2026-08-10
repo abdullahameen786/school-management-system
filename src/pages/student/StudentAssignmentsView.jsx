@@ -1,10 +1,14 @@
 // src/pages/student/StudentAssignmentsView.jsx
 import React, { useState, useEffect } from 'react';
-import { collection, query, where, getDocs, addDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, getDoc, setDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../../firebase/config';
 import { useAuth } from '../../context/AuthContext';
-import { Clipboard, Calendar, FileText, Paperclip, UploadCloud, CheckCircle2, AlertCircle, X, Loader2, BookOpen, Link as LinkIcon, MessageSquare } from 'lucide-react';
+import { 
+  Clipboard, Calendar, FileText, Paperclip, UploadCloud, 
+  CheckCircle2, AlertCircle, X, Loader2, BookOpen, 
+  Link as LinkIcon, MessageSquare, GraduationCap, Layers 
+} from 'lucide-react';
 
 const StudentAssignmentsView = () => {
   const { user } = useAuth();
@@ -21,38 +25,58 @@ const StudentAssignmentsView = () => {
   const [fileError, setFileError] = useState('');
   const [submitLoading, setSubmitLoading] = useState(false);
 
-  // NEW: Submission Form Fields (Comment & URL)
+  // Submission Form Fields (Comment & URL)
   const [submissionForm, setSubmissionForm] = useState({
     comment: '',
     submissionUrl: ''
   });
 
-  const allowedExtensions = ['pdf', 'doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx', 'zip'];
+  const allowedExtensions = ['pdf', 'doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx', 'zip', 'txt'];
 
+  // 1. Fetch Student Profile & Enrolled Classes
   useEffect(() => {
-    const fetchClasses = async () => {
+    const fetchStudentClasses = async () => {
+      if (!user?.uid) return;
+      setLoading(true);
       try {
+        const userSnap = await getDoc(doc(db, 'users', user.uid));
+        const studentData = userSnap.exists() ? userSnap.data() : {};
+        const studentGrade = studentData.gradeClass || studentData.className;
+        const studentSection = studentData.section;
+
         const snap = await getDocs(collection(db, 'classes'));
-        const fetched = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        setClasses(fetched);
-        if (fetched.length > 0) {
-          setSelectedClass(fetched[0].id);
+        const allClasses = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+        // Filter classes matching student's grade and section
+        const enrolledClasses = allClasses.filter(cls => {
+          const clsGrade = cls.gradeClass || cls.className;
+          const matchGrade = studentGrade ? clsGrade === studentGrade : true;
+          const matchSection = studentSection ? cls.section === studentSection : true;
+          return matchGrade && matchSection;
+        });
+
+        setClasses(enrolledClasses);
+        if (enrolledClasses.length > 0) {
+          setSelectedClass(enrolledClasses[0].id);
         }
       } catch (error) {
-        console.error("Error fetching classes:", error);
+        console.error("Error fetching student classes:", error);
+      } finally {
+        setLoading(false);
       }
     };
-    fetchClasses();
-  }, []);
 
+    fetchStudentClasses();
+  }, [user]);
+
+  // 2. Fetch Assignments and Submissions for Selected Class
   useEffect(() => {
     const fetchData = async () => {
       if (!selectedClass || !user?.uid) return;
-      setLoading(true);
       try {
         const aQuery = query(collection(db, 'assignments'), where('classId', '==', selectedClass));
         const aSnap = await getDocs(aQuery);
-        const fetchedAssignments = aSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        let fetchedAssignments = aSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         fetchedAssignments.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
         setAssignments(fetchedAssignments);
 
@@ -66,8 +90,6 @@ const StudentAssignmentsView = () => {
         setSubmissions(fetchedSubs);
       } catch (error) {
         console.error("Error fetching assignments and submissions:", error);
-      } finally {
-        setLoading(false);
       }
     };
 
@@ -84,7 +106,7 @@ const StudentAssignmentsView = () => {
 
     const fileExtension = file.name.split('.').pop().toLowerCase();
     if (!allowedExtensions.includes(fileExtension)) {
-      setFileError('Invalid format! Supported: PDF, DOCX, PPTX, XLSX, ZIP.');
+      setFileError('Invalid format! Supported: PDF, DOCX, PPTX, XLSX, TXT, ZIP.');
       setSelectedFile(null);
       return;
     }
@@ -96,6 +118,7 @@ const StudentAssignmentsView = () => {
     }
 
     setSelectedFile(file);
+    e.target.value = '';
   };
 
   const openSubmitModal = (task) => {
@@ -129,11 +152,10 @@ const StudentAssignmentsView = () => {
 
       if (selectedFile) {
         fileName = selectedFile.name;
-        const storageRef = ref(storage, `submissions/${activeTask.id}/${user.uid}_${selectedFile.name}`);
+        const storageRef = ref(storage, `submissions/${activeTask.id}/${user.uid}_${Date.now()}_${selectedFile.name}`);
         const uploadSnapshot = await uploadBytes(storageRef, selectedFile);
         fileUrl = await getDownloadURL(uploadSnapshot.ref);
       } else {
-        // Keep existing file if re-submitting without changing file
         const existing = submissions[activeTask.id];
         fileUrl = existing?.fileUrl || '';
         fileName = existing?.fileName || '';
@@ -152,12 +174,15 @@ const StudentAssignmentsView = () => {
         submittedAt: new Date().toISOString()
       };
 
-      await addDoc(collection(db, 'submissions'), recordPayload);
+      // Use a unique document ID: studentId_assignmentId for upserting submissions
+      const subDocId = `${user.uid}_${activeTask.id}`;
+      await setDoc(doc(db, 'submissions', subDocId), recordPayload, { merge: true });
 
       setSubmissions(prev => ({ ...prev, [activeTask.id]: recordPayload }));
       closeSubmitModal();
     } catch (error) {
       console.error("Error uploading assignment solution:", error);
+      alert("Failed to submit assignment. Please try again.");
     } finally {
       setSubmitLoading(false);
     }
@@ -178,23 +203,32 @@ const StudentAssignmentsView = () => {
           <p className="text-slate-500 text-sm mt-1">View active coursework tasks and upload your solutions.</p>
         </div>
 
-        <div className="flex items-center gap-2 bg-white px-4 py-2.5 rounded-xl border border-slate-200 shadow-sm w-full sm:w-auto">
-          <BookOpen className="h-4 w-4 text-sky-600" />
-          <select
-            value={selectedClass}
-            onChange={(e) => setSelectedClass(e.target.value)}
-            className="bg-transparent border-none text-sm font-semibold text-slate-700 focus:outline-none cursor-pointer w-full"
-          >
-            {classes.map(cls => (
-              <option key={cls.id} value={cls.id}>{cls.className} ({cls.section})</option>
-            ))}
-          </select>
-        </div>
+        {classes.length > 0 && (
+          <div className="flex items-center gap-2 bg-white px-4 py-2.5 rounded-xl border border-slate-200 shadow-sm w-full sm:w-auto">
+            <BookOpen className="h-4 w-4 text-sky-600 shrink-0" />
+            <select
+              value={selectedClass}
+              onChange={(e) => setSelectedClass(e.target.value)}
+              className="bg-transparent border-none text-sm font-semibold text-slate-700 focus:outline-none cursor-pointer w-full"
+            >
+              {classes.map(cls => (
+                <option key={cls.id} value={cls.id}>
+                  {cls.subjectName || cls.className} - {cls.gradeClass || cls.className} (Sec {cls.section || 'A'})
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
       {loading ? (
         <div className="bg-white p-12 text-center rounded-2xl border border-slate-200">
           <div className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-slate-200 border-t-sky-600"></div>
+        </div>
+      ) : classes.length === 0 ? (
+        <div className="bg-white p-12 rounded-2xl border border-slate-200 text-center shadow-sm text-slate-400">
+          <AlertCircle className="h-8 w-8 mx-auto mb-2 text-slate-300" />
+          No enrolled classes found for your profile.
         </div>
       ) : assignments.length === 0 ? (
         <div className="bg-white p-12 rounded-2xl border border-slate-200 text-center shadow-sm text-slate-400">
@@ -213,16 +247,20 @@ const StudentAssignmentsView = () => {
                       <div className="h-9 w-9 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center shrink-0">
                         <Clipboard className="h-4 w-4" />
                       </div>
-                      <h3 className="text-lg font-bold text-slate-800">{task.title}</h3>
+                      <h3 className="text-lg font-bold text-slate-800 line-clamp-1">{task.title}</h3>
                     </div>
-                    {mySubmission && (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100">
+                    {mySubmission ? (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100 shrink-0">
                         <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" /> Submitted
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-100 shrink-0">
+                        Pending
                       </span>
                     )}
                   </div>
 
-                  <p className="text-slate-600 text-sm leading-relaxed whitespace-pre-wrap">{task.description}</p>
+                  <p className="text-slate-600 text-sm leading-relaxed whitespace-pre-wrap line-clamp-3">{task.description}</p>
                   
                   {task.attachmentUrl && (
                     <a 
@@ -274,7 +312,7 @@ const StudentAssignmentsView = () => {
                         <Paperclip className="h-3.5 w-3.5 shrink-0" /> <span className="truncate">{mySubmission.fileName}</span>
                       </a>
                     ) : (
-                      <span className="text-xs text-amber-600 font-medium">Pending File</span>
+                      <span className="text-xs text-slate-400 font-medium">No file attached</span>
                     )}
 
                     <button
@@ -291,24 +329,26 @@ const StudentAssignmentsView = () => {
         </div>
       )}
 
-      {/* Submission Modal */}
+      {/* Fully Responsive Scrollable Submission Modal */}
       {isModalOpen && activeTask && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 overflow-y-auto">
-          <div className="w-full max-w-lg bg-white rounded-2xl shadow-xl border border-slate-100 transform transition-all animate-in fade-in zoom-in-95 duration-200 my-8">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-3 sm:p-4 overflow-y-auto">
+          <div className="w-full max-w-lg bg-white rounded-2xl shadow-xl border border-slate-100 flex flex-col max-h-[90vh] my-auto overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0 bg-white z-10">
               <h3 className="text-lg font-bold text-slate-800">Submit Assignment</h3>
-              <button onClick={closeSubmitModal} className="text-slate-400 hover:text-slate-600 rounded-lg p-1 hover:bg-slate-50 transition-colors">
+              <button onClick={closeSubmitModal} className="text-slate-400 hover:text-slate-600 rounded-lg p-1 hover:bg-slate-50 transition-colors cursor-pointer">
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <form onSubmit={handleFileUploadSubmit} className="p-6 space-y-4">
+            {/* Scrollable Form Body */}
+            <form onSubmit={handleFileUploadSubmit} className="p-6 space-y-4 overflow-y-auto flex-1">
               <div>
-                <p className="text-xs font-semibold text-slate-400 uppercase">Target Task</p>
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Target Task</p>
                 <h4 className="text-base font-bold text-slate-800 mt-0.5">{activeTask.title}</h4>
               </div>
 
-              {/* NEW: Description / Notes Textarea */}
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-1 flex items-center gap-1.5">
                   <MessageSquare className="h-4 w-4 text-sky-600" /> Submission Notes / Description <span className="text-xs font-normal text-slate-400">(Optional)</span>
@@ -322,7 +362,6 @@ const StudentAssignmentsView = () => {
                 />
               </div>
 
-              {/* NEW: URL Input Field */}
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-1 flex items-center gap-1.5">
                   <LinkIcon className="h-4 w-4 text-sky-600" /> Reference or Repository URL <span className="text-xs font-normal text-slate-400">(Optional)</span>
@@ -336,15 +375,16 @@ const StudentAssignmentsView = () => {
                 />
               </div>
 
-              {/* File Upload Section */}
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1">Upload Solution File <span className="text-xs font-normal text-slate-400">(Max 2MB)</span></label>
+                <label className="block text-sm font-semibold text-slate-700 mb-1">
+                  Upload Solution File <span className="text-xs font-normal text-slate-400">(Optional - Max 2MB)</span>
+                </label>
                 <div className={`mt-1 border-2 border-dashed rounded-xl p-4 text-center transition-all relative ${selectedFile || submissions[activeTask.id]?.fileName ? 'border-sky-500 bg-sky-50/20' : fileError ? 'border-rose-400 bg-rose-50/20' : 'border-slate-200 bg-slate-50 hover:bg-slate-100/50'}`}>
                   
                   {!selectedFile && (
                     <input 
                       type="file" 
-                      accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.zip"
+                      accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.zip,.txt"
                       onChange={handleFileChange}
                       className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
                     />
@@ -355,7 +395,7 @@ const StudentAssignmentsView = () => {
                       <div className="flex items-center justify-between bg-white px-3 py-2 border border-sky-100 rounded-xl max-w-full z-20 relative shadow-sm">
                         <div className="flex items-center gap-2 truncate text-sky-800 font-semibold pr-2">
                           <Paperclip className="h-4 w-4 text-sky-500 shrink-0" />
-                          <span className="truncate max-w-[200px]">{selectedFile.name}</span>
+                          <span className="truncate max-w-[180px] sm:max-w-[240px]">{selectedFile.name}</span>
                           <span className="text-[10px] text-sky-500 font-normal shrink-0">({(selectedFile.size / (1024 * 1024)).toFixed(2)} MB)</span>
                         </div>
                         <button
@@ -370,16 +410,17 @@ const StudentAssignmentsView = () => {
                       <div className="flex items-center justify-between bg-white px-3 py-2 border border-sky-100 rounded-xl max-w-full z-20 relative shadow-sm">
                         <div className="flex items-center gap-2 truncate text-sky-800 font-semibold pr-2">
                           <Paperclip className="h-4 w-4 text-sky-500 shrink-0" />
-                          <span className="truncate max-w-[200px]">{submissions[activeTask.id].fileName}</span>
+                          <span className="truncate max-w-[180px] sm:max-w-[240px]">{submissions[activeTask.id].fileName}</span>
                           <span className="text-[10px] text-sky-500 font-normal shrink-0">(Already Uploaded)</span>
                         </div>
                         <button
                           type="button"
                           onClick={() => {
-                            // Clear existing file reference in state if replacing
                             const updated = { ...submissions };
-                            delete updated[activeTask.id]?.fileName;
-                            delete updated[activeTask.id]?.fileUrl;
+                            if (updated[activeTask.id]) {
+                              delete updated[activeTask.id].fileName;
+                              delete updated[activeTask.id].fileUrl;
+                            }
                             setSubmissions(updated);
                           }}
                           className="text-slate-400 hover:text-rose-600 rounded-lg p-1 hover:bg-rose-50 transition-colors cursor-pointer shrink-0"
@@ -397,10 +438,11 @@ const StudentAssignmentsView = () => {
                     )}
                   </div>
                 </div>
-                {fileError && <p className="text-xs font-semibold text-rose-600 mt-1.5">⚠️ {fileError}</p>}
+                {fileError && <p className="text-xs font-semibold text-rose-600 mt-1.5 flex items-center gap-1">⚠️ {fileError}</p>}
               </div>
 
-              <div className="flex justify-end gap-3 pt-4 border-t border-slate-100 mt-6">
+              {/* Modal Footer Buttons pinned inside scrollable or at bottom */}
+              <div className="flex justify-end gap-3 pt-4 border-t border-slate-100 mt-6 shrink-0 bg-white sticky bottom-0">
                 <button
                   type="button"
                   onClick={closeSubmitModal}
