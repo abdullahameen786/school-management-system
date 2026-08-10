@@ -25,6 +25,8 @@ const ClassScheduling = () => {
 
   const schoolGrades = ['Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5', 'Class 6', 'Class 7', 'Class 8', 'Class 9', 'Class 10'];
   const sections = ['A', 'B', 'C', 'D'];
+  
+  // 🚀 Standard Weekday reference for sorting
   const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
   const fetchData = async () => {
@@ -75,7 +77,10 @@ const ClassScheduling = () => {
       section: cls.section || 'A',
       room: cls.room || '',
       teacherId: cls.teacherId || '',
-      days: Array.isArray(cls.days) ? cls.days : ['Mon'],
+      // 🚀 Load and strictly sort existing days during edit
+      days: Array.isArray(cls.days) 
+        ? [...cls.days].sort((a, b) => weekDays.indexOf(a) - weekDays.indexOf(b)) 
+        : ['Mon'],
       scheduleTime: cls.scheduleTime || '08:30 AM'
     });
     setIsModalOpen(true);
@@ -88,7 +93,10 @@ const ClassScheduling = () => {
         if (prev.days.length === 1) return prev;
         return { ...prev, days: prev.days.filter(d => d !== day) };
       } else {
-        return { ...prev, days: [...prev.days, day] };
+        // 🚀 Add new day and immediately sort chronologically
+        const newDays = [...prev.days, day];
+        newDays.sort((a, b) => weekDays.indexOf(a) - weekDays.indexOf(b));
+        return { ...prev, days: newDays };
       }
     });
   };
@@ -111,7 +119,7 @@ const ClassScheduling = () => {
         room: formData.room.trim() || 'TBA',
         teacherId: formData.teacherId,
         teacherName: selectedTeacher?.name || 'Assigned Instructor',
-        days: formData.days,
+        days: formData.days, // Already perfectly sorted
         scheduleTime: formData.scheduleTime,
         updatedAt: new Date().toISOString()
       };
@@ -196,7 +204,10 @@ const ClassScheduling = () => {
                 <div className="flex items-center gap-3">
                   <Calendar className="h-4 w-4 text-slate-400" />
                   <span className="font-medium text-slate-700">
-                    {Array.isArray(cls.days) ? cls.days.join(', ') : cls.days}
+                    {/* 🚀 Force sort the display arrays to fix older saved broken arrays instantly */}
+                    {Array.isArray(cls.days) 
+                      ? [...cls.days].sort((a, b) => weekDays.indexOf(a) - weekDays.indexOf(b)).join(', ') 
+                      : cls.days}
                   </span>
                 </div>
                 <div className="flex items-center gap-3">

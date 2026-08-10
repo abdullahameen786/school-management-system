@@ -9,6 +9,7 @@ import AdminLayout from "./components/layout/AdminLayout";
 import AnalyticsOverview from './pages/admin/AnalyticsOverview';
 import UserManagement from './pages/admin/UserManagement';
 import ClassScheduling from './pages/admin/ClassScheduling';
+import TeacherAttendance from './pages/admin/TeacherAttendance';
 
 // 🔒 Foolproof Protected Route Component
 const ProtectedRoute = ({ allowedRoles, children }) => {
@@ -53,15 +54,10 @@ function App() {
               </ProtectedRoute>
             }
           >
-            {/* Default Admin View Element */}
             <Route index element={<AnalyticsOverview />} />
-            
-            {/* 🚀 User Management Route Activated */}
             <Route path="users" element={<UserManagement />} />
-            
-            {/* Baqi child admin routes yahan aayenge: */}
             <Route path="scheduling" element={<ClassScheduling />} /> 
-            {/* <Route path="attendance" element={<TeacherAttendance />} /> */}
+            <Route path="attendance" element={<TeacherAttendance />} />
             {/* <Route path="announcements" element={<Announcements />} /> */}
           </Route>
 

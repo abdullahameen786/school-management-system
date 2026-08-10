@@ -29,9 +29,9 @@ const TeacherAttendance = () => {
 
         // 2. Fetch existing attendance for this specific date
         const aQuery = query(
-            collection(db, 'attendance'),
-            where('date', '==', selectedDate),
-            where('targetRole', '==', 'teacher')
+          collection(db, 'attendance'),
+          where('date', '==', selectedDate),
+          where('targetRole', '==', 'teacher')
         );
         const aSnap = await getDocs(aQuery);
         
@@ -53,7 +53,9 @@ const TeacherAttendance = () => {
   }, [selectedDate]);
 
   // Handle marking individual status instantly
-  const markStatus = async (teacherId, status) => {
+  const markStatus = async (teacher, status) => {
+    const teacherId = teacher.id;
+    
     // Optimistic UI update: change color instantly on screen before DB confirms
     setAttendanceMap(prev => ({ ...prev, [teacherId]: status }));
     
@@ -62,6 +64,7 @@ const TeacherAttendance = () => {
       const recordId = `${teacherId}_${selectedDate}`;
       await setDoc(doc(db, 'attendance', recordId), {
         targetId: teacherId,
+        targetName: teacher.name || 'Instructor', // Denormalized data for easy future query summaries
         targetRole: 'teacher',
         date: selectedDate,
         status: status,
@@ -83,8 +86,12 @@ const TeacherAttendance = () => {
         </div>
         
         <div className="flex items-center gap-3 bg-white px-4 py-2.5 rounded-xl border border-slate-200 shadow-sm">
-          <CalendarIcon className="h-5 w-5 text-indigo-600" />
+          <label htmlFor="attendanceDatePicker" className="text-slate-400 cursor-pointer">
+            <CalendarIcon className="h-5 w-5 text-indigo-600" />
+          </label>
           <input 
+            id="attendanceDatePicker"
+            name="attendanceDate"
             type="date" 
             value={selectedDate}
             max={new Date().toISOString().split('T')[0]} // Block future dates
@@ -144,21 +151,21 @@ const TeacherAttendance = () => {
                       <td className="px-6 py-4 whitespace-nowrap text-right">
                         <div className="flex justify-end gap-2">
                           <button 
-                            onClick={() => markStatus(teacher.id, 'present')}
+                            onClick={() => markStatus(teacher, 'present')}
                             className={`p-2 rounded-lg transition-colors border cursor-pointer ${currentStatus === 'present' ? 'bg-emerald-50 border-emerald-200 text-emerald-600 shadow-sm' : 'border-slate-200 text-slate-400 hover:bg-emerald-50 hover:border-emerald-200 hover:text-emerald-600'}`}
                             title="Mark Present"
                           >
                             <Check className="h-4 w-4" />
                           </button>
                           <button 
-                            onClick={() => markStatus(teacher.id, 'late')}
+                            onClick={() => markStatus(teacher, 'late')}
                             className={`p-2 rounded-lg transition-colors border cursor-pointer ${currentStatus === 'late' ? 'bg-amber-50 border-amber-200 text-amber-600 shadow-sm' : 'border-slate-200 text-slate-400 hover:bg-amber-50 hover:border-amber-200 hover:text-amber-600'}`}
                             title="Mark Late"
                           >
                             <Clock className="h-4 w-4" />
                           </button>
                           <button 
-                            onClick={() => markStatus(teacher.id, 'absent')}
+                            onClick={() => markStatus(teacher, 'absent')}
                             className={`p-2 rounded-lg transition-colors border cursor-pointer ${currentStatus === 'absent' ? 'bg-rose-50 border-rose-200 text-rose-600 shadow-sm' : 'border-slate-200 text-slate-400 hover:bg-rose-50 hover:border-rose-200 hover:text-rose-600'}`}
                             title="Mark Absent"
                           >
