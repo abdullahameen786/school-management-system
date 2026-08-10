@@ -222,7 +222,7 @@ const GradebookPortal = () => {
 
   const activeEval = [...exams, ...assignments].find(e => e.id === selectedEvaluation);
 
-  const handleSaveGrades = async (e) => {
+const handleSaveGrades = async (e) => {
     e.preventDefault();
     setSaveLoading(true);
 
@@ -237,7 +237,17 @@ const GradebookPortal = () => {
         if (isNaN(parsedScore)) return; 
 
         const recordId = `${student.id}_${selectedEvaluation}`;
-        await setDoc(doc(db, 'grades', recordId), {
+        
+        // 🚀 1. Fetch existing/old grade record from Firestore before overwriting
+        const existingDocRef = doc(db, 'grades', recordId);
+        const existingDocSnap = await getDoc(existingDocRef);
+        const oldMarks = existingDocSnap.exists() ? existingDocSnap.data().obtainedMarks : null;
+
+        // Skip logging if marks haven't changed at all
+        if (oldMarks === parsedScore) return;
+
+        // 🚀 2. Save new grades
+        await setDoc(existingDocRef, {
           studentId: student.id,
           studentName: student.name,
           classId: selectedClass,
@@ -249,13 +259,14 @@ const GradebookPortal = () => {
           updatedAt: new Date().toISOString()
         }, { merge: true });
 
-        // 🚀 Log Individual Grade Modification / Entry to System Audit Trail
-        await logAuditAction(user, 'GRADE_RECORD_SAVED', {
+        // 🚀 3. Log exact old marks vs new marks modification
+        await logAuditAction(user, oldMarks !== null ? 'GRADE_MODIFIED' : 'GRADE_RECORD_SAVED', {
           studentId: student.id,
           studentName: student.name,
           evaluationTitle: activeEval?.title || 'Evaluation',
           subject: subjectName,
-          obtainedMarks: parsedScore,
+          oldMarks: oldMarks !== null ? oldMarks : 'None',
+          newMarks: parsedScore,
           maxMarks: activeEval?.maxMarks || 100
         });
       });

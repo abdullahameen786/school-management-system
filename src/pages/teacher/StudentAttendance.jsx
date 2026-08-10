@@ -136,8 +136,12 @@ const StudentAttendance = () => {
   }, [selectedClass, selectedDate, myClasses]);
 
   // 3. Mark Student Status with Subject Name included & Audit Logging
-  const markStatus = async (student, status) => {
+const markStatus = async (student, status) => {
     const studentId = student.id;
+    const oldStatus = attendanceMap[studentId] || 'Unmarked';
+
+    // If status is clicked again and is identical, do nothing
+    if (oldStatus === status) return;
 
     // Optimistic UI update
     setAttendanceMap((prev) => ({ ...prev, [studentId]: status }));
@@ -163,13 +167,14 @@ const StudentAttendance = () => {
         { merge: true },
       );
 
-      // 🚀 Log Attendance Modification/Marking to Admin Audit Trail
-      await logAuditAction(user, 'ATTENDANCE_MARKED', {
+      // 🚀 Log Attendance Modification with Old and New status
+      await logAuditAction(user, 'ATTENDANCE_MODIFIED', {
         studentId: studentId,
         studentName: student.name || 'Student',
         subject: subjectName,
         date: selectedDate,
-        status: status
+        oldStatus: oldStatus,
+        newStatus: status
       });
 
     } catch (error) {
