@@ -5,7 +5,7 @@ import { db } from '../../firebase/config';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-hot-toast'; 
 import { logAuditAction } from '../../utils/auditLogger'; 
-import { BookOpen, Clipboard, Save, AlertCircle, Lock, Plus, X, ExternalLink, FileText, Paperclip, MessageSquare, Loader2 } from 'lucide-react';
+import { BookOpen, Clipboard, Save, AlertCircle, Lock, Plus, X, ExternalLink, FileText, Paperclip, MessageSquare, Loader2, Calendar } from 'lucide-react';
 
 const GradebookSkeleton = ({ isAssignment }) => (
   <tbody className="animate-pulse">
@@ -56,8 +56,6 @@ const GradebookPortal = () => {
 
   const [isExamModalOpen, setIsExamModalOpen] = useState(false);
   const [examSubmitLoading, setExamSubmitLoading] = useState(false);
-  
-  // 🚀 Updated Exam Form State with Type and Number selectors
   const [examFormData, setExamFormData] = useState({ type: 'Assignment', number: '1', maxMarks: '10' });
 
   useEffect(() => {
@@ -198,7 +196,6 @@ const GradebookPortal = () => {
       const activeClassObj = myClasses.find(c => c.id === selectedClass);
       const subjectName = activeClassObj?.subjectName || activeClassObj?.subject || activeClassObj?.course || 'General Course';
       
-      // Auto-generate title like Assignment-1, Quiz-2, CP-3
       const generatedTitle = `${examFormData.type}-${examFormData.number}`;
 
       const docRef = await addDoc(collection(db, 'exams'), {
@@ -293,10 +290,15 @@ const GradebookPortal = () => {
     }
   };
 
+  // 🚀 Sirf Admin ke create kiye hue Mid ya Final exams par due date lock apply hoga
   let isEvaluationLocked = false;
-  if (activeEval?.type === 'assignment' && activeEval.dueDate) {
+  const evalTitleLower = (activeEval?.title || '').toLowerCase();
+  const evalTypeLower = (activeEval?.evalType || '').toLowerCase();
+  const isMidOrFinal = evalTitleLower.includes('mid') || evalTitleLower.includes('final') || evalTypeLower.includes('mid') || evalTypeLower.includes('final');
+
+  if (activeEval?.type === 'exam' && isMidOrFinal && activeEval?.dueDate) {
     const today = new Date().toISOString().split('T')[0];
-    if (today < activeEval.dueDate) {
+    if (today > activeEval.dueDate) {
       isEvaluationLocked = true;
     }
   }
@@ -339,9 +341,9 @@ const GradebookPortal = () => {
               ) : (
                 <>
                   {exams.length > 0 && (
-                    <optgroup label="Custom Exams / Tests">
+                    <optgroup label="Exams & Tests">
                       {exams.map(e => (
-                        <option key={e.id} value={e.id}>📝 {e.title}</option>
+                        <option key={e.id} value={e.id}>🎯 {e.title} {e.dueDate ? `(Due: ${e.dueDate})` : ''}</option>
                       ))}
                     </optgroup>
                   )}
@@ -367,13 +369,20 @@ const GradebookPortal = () => {
         </div>
       </div>
 
-      {isEvaluationLocked && activeEval?.type === 'assignment' && (
+      {isEvaluationLocked && (
         <div className="p-4 bg-amber-50 text-amber-800 border border-amber-200 rounded-xl flex items-center gap-3 text-sm font-medium shadow-sm animate-in zoom-in-95">
           <Lock className="h-4 w-4 text-amber-600 shrink-0" />
           <div>
-            <p className="font-bold text-amber-900">Evaluation Locked</p>
-            <p className="text-amber-700 mt-0.5">You can evaluate this assignment after the due date: <span className="font-bold">{activeEval.dueDate}</span>.</p>
+            <p className="font-bold text-amber-900">Evaluation Window Locked</p>
+            <p className="text-amber-700 mt-0.5">The submission deadline for this exam has passed (<span className="font-bold">{activeEval?.dueDate}</span>). Scores can no longer be modified.</p>
           </div>
+        </div>
+      )}
+
+      {activeEval?.dueDate && isMidOrFinal && !isEvaluationLocked && (
+        <div className="p-3 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-xl flex items-center gap-3 text-xs font-semibold shadow-xs">
+          <Calendar className="h-4 w-4 text-emerald-600 shrink-0" />
+          <span>Exam Submission Deadline: <strong className="underline">{activeEval.dueDate}</strong>. Enter or update marks before this date.</span>
         </div>
       )}
 
@@ -543,7 +552,6 @@ const GradebookPortal = () => {
         )}
       </form>
 
-      {/* 🚀 Updated Create Custom Exam Modal with Type and Number Dropdowns */}
       {isExamModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
           <div className="w-full max-w-sm bg-white rounded-2xl shadow-xl border border-slate-100 transform transition-all animate-in zoom-in-95 duration-200">
@@ -581,7 +589,6 @@ const GradebookPortal = () => {
                 </select>
               </div>
 
-              {/* Title Preview */}
               <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-between text-xs">
                 <span className="font-semibold text-slate-500">Generated Title:</span>
                 <span className="font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-100">
