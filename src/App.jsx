@@ -12,6 +12,14 @@ import ClassScheduling from './pages/admin/ClassScheduling';
 import TeacherAttendance from './pages/admin/TeacherAttendance';
 import Announcements from './pages/admin/Announcements';
 
+// 🚀 Placeholder Components for Teacher Module (To prevent import crashes)
+const TeacherLayout = () => (
+  <div className="p-8">
+    <h1 className="text-xl font-bold mb-4 text-slate-800">Teacher Portal Base</h1>
+    <p className="text-slate-500 text-sm">Dashboard pages will inject inside this container context dynamically.</p>
+  </div>
+);
+
 // 🔒 Foolproof Protected Route Component
 const ProtectedRoute = ({ allowedRoles, children }) => {
   const { user, loading } = useAuth();
@@ -60,6 +68,19 @@ function App() {
             <Route path="scheduling" element={<ClassScheduling />} /> 
             <Route path="attendance" element={<TeacherAttendance />} />
             <Route path="announcements" element={<Announcements />} />
+          </Route>
+
+          {/* 🔐 🚀 New Secure Teacher Dashboard Flow */}
+          <Route 
+            path="/teacher" 
+            element={
+              <ProtectedRoute allowedRoles={['teacher']}>
+                <TeacherLayout />
+              </ProtectedRoute>
+            }
+          >
+            {/* Teacher layouts pages layout context updates will map down here */}
+            <Route index element={<div className="text-sm font-semibold text-slate-700">Teacher Overview Panel Live</div>} />
           </Route>
 
           {/* Fallback Catch-All Route */}
