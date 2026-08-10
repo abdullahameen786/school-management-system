@@ -12,19 +12,20 @@ import ClassScheduling from './pages/admin/ClassScheduling';
 import TeacherAttendance from './pages/admin/TeacherAttendance';
 import Announcements from './pages/admin/Announcements';
 
-// 🚀 Placeholder Components for Teacher Module (To prevent import crashes)
-const TeacherLayout = () => (
-  <div className="p-8">
-    <h1 className="text-xl font-bold mb-4 text-slate-800">Teacher Portal Base</h1>
-    <p className="text-slate-500 text-sm">Dashboard pages will inject inside this container context dynamically.</p>
-  </div>
-);
+// Teacher Layout & Pages
+import TeacherLayout from './components/layout/TeacherLayout';
+
+// Placeholder Components for Teacher Sub-Pages (can be replaced with actual page files later)
+const TeacherClasses = () => <div className="text-xl font-bold text-slate-800">My Assigned Classes</div>;
+const StudentAttendance = () => <div className="text-xl font-bold text-slate-800">Student Attendance Portal</div>;
+const GradebookPortal = () => <div className="text-xl font-bold text-slate-800">Gradebook Portal</div>;
+const AssignmentsHub = () => <div className="text-xl font-bold text-slate-800">Assignments Hub</div>;
+const TeacherAnnouncements = () => <div className="text-xl font-bold text-slate-800">Teacher Notice Board</div>;
 
 // 🔒 Foolproof Protected Route Component
 const ProtectedRoute = ({ allowedRoles, children }) => {
   const { user, loading } = useAuth();
 
-  // 1. Agar global login content check loading mein ho, spinner dikhayein
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen bg-slate-50 text-indigo-600">
@@ -33,12 +34,10 @@ const ProtectedRoute = ({ allowedRoles, children }) => {
     );
   }
 
-  // 2. Agar user logged in hi nahi hai, safely login page par bhejein
   if (!user) {
     return <Navigate to="/login" replace />;
   }
 
-  // 3. Agar user logged in hai par role matched nahi hai, root par clear karein
   if (allowedRoles && !allowedRoles.includes(user.role)) {
     return <Navigate to="/login" replace />;
   }
@@ -70,7 +69,7 @@ function App() {
             <Route path="announcements" element={<Announcements />} />
           </Route>
 
-          {/* 🔐 🚀 New Secure Teacher Dashboard Flow */}
+          {/* 🔐 Secure Teacher Dashboard Flow */}
           <Route 
             path="/teacher" 
             element={
@@ -79,8 +78,11 @@ function App() {
               </ProtectedRoute>
             }
           >
-            {/* Teacher layouts pages layout context updates will map down here */}
-            <Route index element={<div className="text-sm font-semibold text-slate-700">Teacher Overview Panel Live</div>} />
+            <Route index element={<TeacherClasses />} />
+            <Route path="attendance" element={<StudentAttendance />} />
+            <Route path="grades" element={<GradebookPortal />} />
+            <Route path="assignments" element={<AssignmentsHub />} />
+            <Route path="announcements" element={<TeacherAnnouncements />} />
           </Route>
 
           {/* Fallback Catch-All Route */}
