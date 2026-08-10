@@ -13,6 +13,7 @@ import {
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db, storage } from "../../firebase/config";
 import { useAuth } from "../../context/AuthContext";
+import { toast } from "react-hot-toast"; // 🚀 Premium Global Toast Notifications
 import {
   Plus,
   Clipboard,
@@ -30,6 +31,31 @@ import {
   GraduationCap,
   Link as LinkIcon,
 } from "lucide-react";
+
+// 🚀 Premium Shimmer Card Grid Skeleton Loader
+const AssignmentCardSkeleton = () => (
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-pulse">
+    {[1, 2, 3, 4].map((i) => (
+      <div key={i} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between h-[220px]">
+        <div className="space-y-3">
+          <div className="flex items-center gap-3">
+            <div className="h-9 w-9 bg-slate-200 rounded-xl shrink-0"></div>
+            <div className="space-y-1.5 w-full">
+              <div className="h-5 w-3/4 bg-slate-200 rounded-md"></div>
+              <div className="h-3 w-1/2 bg-slate-100 rounded-md"></div>
+            </div>
+          </div>
+          <div className="h-3 w-full bg-slate-100 rounded-md"></div>
+          <div className="h-3 w-2/3 bg-slate-100 rounded-md"></div>
+        </div>
+        <div className="flex justify-between items-center pt-4 border-t border-slate-100">
+          <div className="h-4 w-20 bg-slate-100 rounded-md"></div>
+          <div className="h-6 w-32 bg-slate-100 rounded-lg"></div>
+        </div>
+      </div>
+    ))}
+  </div>
+);
 
 const AssignmentsHub = () => {
   const { user } = useAuth();
@@ -59,29 +85,11 @@ const AssignmentsHub = () => {
   const [fileError, setFileError] = useState("");
 
   const schoolGrades = [
-    "Class 1",
-    "Class 2",
-    "Class 3",
-    "Class 4",
-    "Class 5",
-    "Class 6",
-    "Class 7",
-    "Class 8",
-    "Class 9",
-    "Class 10",
+    "Class 1", "Class 2", "Class 3", "Class 4", "Class 5", 
+    "Class 6", "Class 7", "Class 8", "Class 9", "Class 10"
   ];
   const sections = ["A", "B", "C", "D"];
-  const allowedExtensions = [
-    "pdf",
-    "doc",
-    "docx",
-    "ppt",
-    "pptx",
-    "xls",
-    "xlsx",
-    "zip",
-    "txt",
-  ];
+  const allowedExtensions = ["pdf", "doc", "docx", "ppt", "pptx", "xls", "xlsx", "zip", "txt"];
 
   useEffect(() => {
     const fetchClasses = async () => {
@@ -120,6 +128,7 @@ const AssignmentsHub = () => {
       setAssignments(fetched);
     } catch (error) {
       console.error("Error loading assignments:", error);
+      toast.error("Failed to load assignment feed.");
     } finally {
       setLoading(false);
     }
@@ -180,9 +189,7 @@ const AssignmentsHub = () => {
 
     const fileExtension = file.name.split(".").pop().toLowerCase();
     if (!allowedExtensions.includes(fileExtension)) {
-      setFileError(
-        "Invalid format! Supported: PDF, DOCX, PPTX, XLSX, TXT, ZIP.",
-      );
+      setFileError("Invalid format! Supported: PDF, DOCX, PPTX, XLSX, TXT, ZIP.");
       setSelectedFile(null);
       return;
     }
@@ -205,28 +212,21 @@ const AssignmentsHub = () => {
     setFormData((prev) => ({ ...prev, attachmentUrl: "", attachmentName: "" }));
   };
 
-  const withTimeout = (promise, ms = 12000) => {
+  const withTimeout = (promise, ms = 15000) => {
     let timeoutId;
     const timeoutPromise = new Promise((_, reject) => {
       timeoutId = setTimeout(
-        () =>
-          reject(
-            new Error(
-              "Request timed out. Check Firebase Storage rules or internet connection.",
-            ),
-          ),
+        () => reject(new Error("Request timed out. Check network connection.")),
         ms,
       );
     });
-    return Promise.race([promise, timeoutPromise]).finally(() =>
-      clearTimeout(timeoutId),
-    );
+    return Promise.race([promise, timeoutPromise]).finally(() => clearTimeout(timeoutId));
   };
 
   const handlePublish = async (e) => {
     e.preventDefault();
     if (!formData.subjectName.trim()) {
-      alert("Please enter a subject name.");
+      toast.error("Please enter a subject name.");
       return;
     }
 
@@ -244,19 +244,11 @@ const AssignmentsHub = () => {
         );
 
         try {
-          const uploadSnapshot = await withTimeout(
-            uploadBytes(storageRef, selectedFile),
-            15000,
-          );
-          finalAttachmentUrl = await withTimeout(
-            getDownloadURL(uploadSnapshot.ref),
-            10000,
-          );
+          const uploadSnapshot = await withTimeout(uploadBytes(storageRef, selectedFile), 15000);
+          finalAttachmentUrl = await withTimeout(getDownloadURL(uploadSnapshot.ref), 10000);
         } catch (uploadErr) {
-          console.error("Detailed Storage Error:", uploadErr);
-          alert(
-            `Upload Failed: ${uploadErr.message || uploadErr.code || "Unknown storage error"}`,
-          );
+          console.error("Storage Error:", uploadErr);
+          toast.error(`Upload Failed: ${uploadErr.message || "Unknown error"}`);
           setSubmitLoading(false);
           return;
         }
@@ -266,13 +258,10 @@ const AssignmentsHub = () => {
 
       const matchedClass = myClasses.find(
         (c) =>
-          (c.gradeClass === formData.gradeClass ||
-            c.className === formData.gradeClass) &&
+          (c.gradeClass === formData.gradeClass || c.className === formData.gradeClass) &&
           c.section === formData.section &&
-          (c.subjectName?.toLowerCase() ===
-            formData.subjectName.trim().toLowerCase() ||
-            c.className?.toLowerCase() ===
-              formData.subjectName.trim().toLowerCase()),
+          (c.subjectName?.toLowerCase() === formData.subjectName.trim().toLowerCase() ||
+           c.className?.toLowerCase() === formData.subjectName.trim().toLowerCase()),
       );
 
       const payload = {
@@ -297,6 +286,7 @@ const AssignmentsHub = () => {
             updatedAt: new Date().toISOString(),
           }),
         );
+        toast.success("Assignment updated successfully!");
       } else {
         await withTimeout(
           addDoc(collection(db, "assignments"), {
@@ -304,27 +294,48 @@ const AssignmentsHub = () => {
             createdAt: new Date().toISOString(),
           }),
         );
+        toast.success("New assignment published successfully!");
       }
 
       setIsModalOpen(false);
       fetchAssignments();
     } catch (error) {
       console.error("Error saving assignment:", error);
-      alert(error.message || "Failed to save assignment. Please try again.");
+      toast.error(error.message || "Failed to save assignment.");
     } finally {
       setSubmitLoading(false);
     }
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm("Remove this assignment post permanently?")) {
-      try {
-        await deleteDoc(doc(db, "assignments", id));
-        fetchAssignments();
-      } catch (error) {
-        console.error("Error deleting assignment:", error);
-      }
-    }
+    toast((t) => (
+      <div className="flex flex-col gap-2.5 p-1">
+        <p className="text-xs font-semibold text-slate-200">Remove this assignment post permanently?</p>
+        <div className="flex justify-end gap-2 text-[11px]">
+          <button 
+            onClick={() => toast.dismiss(t.id)} 
+            className="px-2.5 py-1 bg-slate-600 hover:bg-slate-500 rounded-md font-medium text-white transition-colors cursor-pointer"
+          >
+            Cancel
+          </button>
+          <button 
+            onClick={async () => {
+              toast.dismiss(t.id);
+              try {
+                await deleteDoc(doc(db, "assignments", id));
+                toast.success("Assignment successfully removed.");
+                fetchAssignments();
+              } catch (err) {
+                toast.error("Failed to delete assignment.");
+              }
+            }} 
+            className="px-2.5 py-1 bg-rose-600 hover:bg-rose-500 rounded-md font-bold text-white transition-colors cursor-pointer"
+          >
+            Confirm Delete
+          </button>
+        </div>
+      </div>
+    ), { duration: 6000, style: { background: '#1e293b' } });
   };
 
   const formatTime = (timeStr) => {
@@ -335,7 +346,7 @@ const AssignmentsHub = () => {
   };
 
   return (
-    <div className="space-y-6 relative">
+    <div className="space-y-6 relative animate-in fade-in duration-200">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-800">Assignments Hub</h1>
@@ -345,7 +356,7 @@ const AssignmentsHub = () => {
         </div>
 
         <div className="flex items-center gap-3 w-full sm:w-auto">
-          <div className="flex items-center gap-2 bg-white px-4 py-2.5 rounded-xl border border-slate-200 shadow-sm w-full sm:w-auto">
+          <div className="flex items-center gap-2 bg-white px-4 py-2.5 rounded-xl border border-slate-200 shadow-sm w-full sm:w-auto focus-within:border-emerald-500 focus-within:ring-1 focus-within:ring-emerald-500">
             <label
               htmlFor="classFilterSelect"
               className="text-emerald-600 cursor-pointer"
@@ -378,9 +389,7 @@ const AssignmentsHub = () => {
       </div>
 
       {loading ? (
-        <div className="bg-white p-12 text-center rounded-2xl border border-slate-200">
-          <div className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-slate-200 border-t-emerald-600"></div>
-        </div>
+        <AssignmentCardSkeleton />
       ) : assignments.length === 0 ? (
         <div className="bg-white p-12 rounded-2xl border border-slate-200 text-center shadow-sm text-slate-400">
           <ShieldAlert className="h-8 w-8 mx-auto mb-2 text-slate-300" />
@@ -396,14 +405,14 @@ const AssignmentsHub = () => {
               <div className="absolute top-4 right-4 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                 <button
                   onClick={() => handleEditClick(task)}
-                  className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
+                  className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-colors cursor-pointer"
                   title="Edit Assignment"
                 >
                   <Edit2 className="h-4 w-4" />
                 </button>
                 <button
                   onClick={() => handleDelete(task.id)}
-                  className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                  className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
                   title="Delete Assignment"
                 >
                   <Trash2 className="h-4 w-4" />
@@ -412,7 +421,7 @@ const AssignmentsHub = () => {
 
               <div className="space-y-3 pr-16">
                 <div className="flex items-center gap-2.5">
-                  <div className="h-9 w-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+                  <div className="h-9 w-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-100 shadow-xs">
                     <Clipboard className="h-4 w-4" />
                   </div>
                   <div>
@@ -420,11 +429,11 @@ const AssignmentsHub = () => {
                       {task.title}
                     </h3>
                     <div className="flex items-center gap-2 mt-0.5">
-                      <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md">
+                      <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">
                         <GraduationCap className="h-3 w-3" />{" "}
                         {task.gradeClass || "Class"}
                       </span>
-                      <span className="inline-flex items-center gap-1 text-[11px] font-bold text-sky-700 bg-sky-50 px-2 py-0.5 rounded-md">
+                      <span className="inline-flex items-center gap-1 text-[11px] font-bold text-sky-700 bg-sky-50 px-2 py-0.5 rounded-md border border-sky-100">
                         <Layers className="h-3 w-3" /> Sec {task.section || "A"}
                       </span>
                       {task.subjectName && (
@@ -445,7 +454,7 @@ const AssignmentsHub = () => {
                     href={task.attachmentUrl}
                     target="_blank"
                     rel="noreferrer"
-                    className="inline-flex items-center gap-2 mt-2 px-3 py-1.5 rounded-xl bg-slate-100 text-slate-700 text-xs font-semibold border border-slate-200 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200 transition-colors w-fit max-w-full"
+                    className="inline-flex items-center gap-2 mt-2 px-3 py-1.5 rounded-xl bg-slate-50 text-slate-700 text-xs font-semibold border border-slate-200 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200 transition-colors w-fit max-w-full shadow-xs"
                   >
                     <Paperclip className="h-3.5 w-3.5 shrink-0 text-slate-400" />
                     <span className="truncate">
@@ -460,7 +469,7 @@ const AssignmentsHub = () => {
                   <FileText className="h-3.5 w-3.5" /> Marks:{" "}
                   <span className="text-slate-700">{task.maxMarks}</span>
                 </span>
-                <span className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-rose-50 text-rose-600">
+                <span className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-rose-50 text-rose-600 border border-rose-100">
                   <Calendar className="h-3.5 w-3.5" /> Due: {task.dueDate}{" "}
                   {task.dueTime ? `at ${formatTime(task.dueTime)}` : ""}
                 </span>
@@ -470,12 +479,11 @@ const AssignmentsHub = () => {
         </div>
       )}
 
-      {/* 🚀 Fully Responsive Scrollable Modal */}
+      {/* Modal View */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-3 sm:p-4 overflow-y-auto">
-          <div className="w-full max-w-lg bg-white rounded-2xl shadow-xl border border-slate-100 flex flex-col max-h-[90vh] my-auto overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-3 sm:p-4 overflow-y-auto animate-in fade-in duration-200">
+          <div className="w-full max-w-lg bg-white rounded-2xl shadow-xl border border-slate-100 flex flex-col max-h-[90vh] my-auto overflow-hidden animate-in zoom-in-95 duration-200">
             
-            {/* Modal Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0 bg-white z-10">
               <h3 className="text-lg font-bold text-slate-800">
                 {editingAssignmentId
@@ -490,7 +498,6 @@ const AssignmentsHub = () => {
               </button>
             </div>
 
-            {/* Scrollable Form Body */}
             <form onSubmit={handlePublish} className="p-6 space-y-4 overflow-y-auto flex-1">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
@@ -557,7 +564,7 @@ const AssignmentsHub = () => {
                   onChange={(e) =>
                     setFormData({ ...formData, subjectName: e.target.value })
                   }
-                  className="block w-full px-3 py-2.5 border border-slate-200 bg-slate-50 rounded-xl text-sm focus:outline-none focus:border-emerald-500 focus:bg-white"
+                  className="block w-full px-3 py-2.5 border border-slate-200 bg-slate-50 rounded-xl text-sm focus:outline-none focus:border-emerald-500 focus:bg-white transition-colors"
                   placeholder="e.g. Mathematics, English, Physics..."
                 />
               </div>
@@ -578,7 +585,7 @@ const AssignmentsHub = () => {
                   onChange={(e) =>
                     setFormData({ ...formData, title: e.target.value })
                   }
-                  className="block w-full px-3 py-2.5 border border-slate-200 bg-slate-50 rounded-xl text-sm focus:outline-none focus:border-emerald-500 focus:bg-white"
+                  className="block w-full px-3 py-2.5 border border-slate-200 bg-slate-50 rounded-xl text-sm focus:outline-none focus:border-emerald-500 focus:bg-white transition-colors"
                   placeholder="e.g. Assignment 1: Chapter Review"
                 />
               </div>
@@ -599,7 +606,7 @@ const AssignmentsHub = () => {
                   onChange={(e) =>
                     setFormData({ ...formData, description: e.target.value })
                   }
-                  className="block w-full px-3 py-2.5 border border-slate-200 bg-slate-50 rounded-xl text-sm focus:outline-none focus:border-emerald-500 focus:bg-white resize-none"
+                  className="block w-full px-3 py-2.5 border border-slate-200 bg-slate-50 rounded-xl text-sm focus:outline-none focus:border-emerald-500 focus:bg-white resize-none transition-colors"
                   placeholder="Provide details about expectations..."
                 />
               </div>
@@ -692,7 +699,7 @@ const AssignmentsHub = () => {
                     onChange={(e) =>
                       setFormData({ ...formData, attachmentUrl: e.target.value })
                     }
-                    className="block w-full pl-9 pr-3 py-2.5 border border-slate-200 bg-slate-50 rounded-xl text-sm focus:outline-none focus:border-emerald-500 focus:bg-white"
+                    className="block w-full pl-9 pr-3 py-2.5 border border-slate-200 bg-slate-50 rounded-xl text-sm focus:outline-none focus:border-emerald-500 focus:bg-white transition-colors"
                     placeholder="https://drive.google.com/..."
                   />
                 </div>
@@ -716,7 +723,7 @@ const AssignmentsHub = () => {
                     onChange={(e) =>
                       setFormData({ ...formData, maxMarks: e.target.value })
                     }
-                    className="block w-full px-3 py-2.5 border border-slate-200 bg-slate-50 rounded-xl text-sm focus:outline-none focus:border-emerald-500 focus:bg-white"
+                    className="block w-full px-3 py-2.5 border border-slate-200 bg-slate-50 rounded-xl text-sm focus:outline-none focus:border-emerald-500 focus:bg-white transition-colors"
                   />
                 </div>
                 <div>
@@ -735,7 +742,7 @@ const AssignmentsHub = () => {
                     onChange={(e) =>
                       setFormData({ ...formData, dueDate: e.target.value })
                     }
-                    className="block w-full px-3 py-2.5 border border-slate-200 bg-slate-50 rounded-xl text-sm focus:outline-none focus:border-emerald-500 focus:bg-white cursor-pointer"
+                    className="block w-full px-3 py-2.5 border border-slate-200 bg-slate-50 rounded-xl text-sm focus:outline-none focus:border-emerald-500 focus:bg-white cursor-pointer transition-colors"
                   />
                 </div>
                 <div>
@@ -754,12 +761,11 @@ const AssignmentsHub = () => {
                     onChange={(e) =>
                       setFormData({ ...formData, dueTime: e.target.value })
                     }
-                    className="block w-full px-3 py-2.5 border border-slate-200 bg-slate-50 rounded-xl text-sm focus:outline-none focus:border-emerald-500 focus:bg-white cursor-pointer"
+                    className="block w-full px-3 py-2.5 border border-slate-200 bg-slate-50 rounded-xl text-sm focus:outline-none focus:border-emerald-500 focus:bg-white cursor-pointer transition-colors"
                   />
                 </div>
               </div>
 
-              {/* Modal Footer Buttons pinned inside scrollable or at bottom */}
               <div className="flex justify-end gap-3 pt-4 border-t border-slate-100 mt-6 shrink-0 bg-white sticky bottom-0">
                 <button
                   type="button"
