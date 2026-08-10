@@ -4,6 +4,7 @@ import { collection, query, where, getDocs, doc, setDoc, addDoc } from 'firebase
 import { db } from '../../firebase/config';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-hot-toast'; 
+import { logAuditAction } from '../../utils/auditLogger'; // 🚀 Audit Logging Utility
 import { BookOpen, Clipboard, Save, AlertCircle, Lock, Plus, X, ExternalLink, FileText, Paperclip, MessageSquare, Loader2 } from 'lucide-react';
 
 const GradebookSkeleton = ({ isAssignment }) => (
@@ -195,6 +196,13 @@ const GradebookPortal = () => {
         createdAt: new Date().toISOString()
       });
       
+      // 🚀 Log exam creation audit action
+      await logAuditAction(user, 'EXAM_CREATED', {
+        examTitle: examFormData.title.trim(),
+        maxMarks: examFormData.maxMarks,
+        classId: selectedClass
+      });
+
       setIsExamModalOpen(false);
       setExamFormData({ title: '', maxMarks: '100' });
       setSelectedEvaluation(docRef.id);
@@ -222,14 +230,14 @@ const GradebookPortal = () => {
       const activeClassObj = myClasses.find(c => c.id === selectedClass);
       const subjectName = activeClassObj?.subjectName || activeClassObj?.subject || activeClassObj?.course || activeClassObj?.className || 'General Course';
 
-      const promises = students.map(student => {
+      const promises = students.map(async (student) => {
         const score = gradesMap[student.id];
-        if (score === undefined || score === '') return Promise.resolve();
+        if (score === undefined || score === '') return;
         const parsedScore = parseFloat(score);
-        if (isNaN(parsedScore)) return Promise.resolve(); 
+        if (isNaN(parsedScore)) return; 
 
         const recordId = `${student.id}_${selectedEvaluation}`;
-        return setDoc(doc(db, 'grades', recordId), {
+        await setDoc(doc(db, 'grades', recordId), {
           studentId: student.id,
           studentName: student.name,
           classId: selectedClass,
@@ -240,10 +248,20 @@ const GradebookPortal = () => {
           obtainedMarks: parsedScore, 
           updatedAt: new Date().toISOString()
         }, { merge: true });
+
+        // 🚀 Log Individual Grade Modification / Entry to System Audit Trail
+        await logAuditAction(user, 'GRADE_RECORD_SAVED', {
+          studentId: student.id,
+          studentName: student.name,
+          evaluationTitle: activeEval?.title || 'Evaluation',
+          subject: subjectName,
+          obtainedMarks: parsedScore,
+          maxMarks: activeEval?.maxMarks || 100
+        });
       });
 
       await Promise.all(promises);
-      toast.success(`${activeEval?.title || 'Evaluation'} scores saved!`);
+      toast.success(`${activeEval?.title || 'Evaluation'} scores saved & audited successfully!`);
     } catch (error) {
       console.error("Error saving score tables:", error);
       toast.error('Failed to write metrics to cloud database.');
