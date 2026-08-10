@@ -4,11 +4,37 @@ import { collection, query, where, getDocs, doc, getDoc, setDoc } from 'firebase
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../../firebase/config';
 import { useAuth } from '../../context/AuthContext';
+import { toast } from 'react-hot-toast'; // 🚀 Premium Toast Notifications
 import { 
   Clipboard, Calendar, FileText, Paperclip, UploadCloud, 
   CheckCircle2, AlertCircle, X, Loader2, BookOpen, 
-  Link as LinkIcon, MessageSquare, GraduationCap, Layers 
+  Link as LinkIcon, MessageSquare, GraduationCap, Layers, Lock 
 } from 'lucide-react';
+
+// 🚀 Premium Shimmer Card Grid Skeleton Loader for Assignments
+const AssignmentCardsSkeleton = () => (
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-pulse">
+    {[1, 2, 3, 4].map((i) => (
+      <div key={i} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between h-[250px]">
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5 w-full">
+              <div className="h-9 w-9 bg-slate-200 rounded-xl shrink-0"></div>
+              <div className="h-5 w-2/3 bg-slate-200 rounded-md"></div>
+            </div>
+            <div className="h-6 w-20 bg-slate-100 rounded-lg shrink-0"></div>
+          </div>
+          <div className="h-3 w-full bg-slate-100 rounded-md"></div>
+          <div className="h-3 w-3/4 bg-slate-100 rounded-md"></div>
+        </div>
+        <div className="pt-4 border-t border-slate-100 flex justify-between items-center">
+          <div className="h-4 w-24 bg-slate-100 rounded-md"></div>
+          <div className="h-9 w-28 bg-slate-200 rounded-xl"></div>
+        </div>
+      </div>
+    ))}
+  </div>
+);
 
 const StudentAssignmentsView = () => {
   const { user } = useAuth();
@@ -25,13 +51,21 @@ const StudentAssignmentsView = () => {
   const [fileError, setFileError] = useState('');
   const [submitLoading, setSubmitLoading] = useState(false);
 
-  // Submission Form Fields (Comment & URL)
+  // Submission Form Fields
   const [submissionForm, setSubmissionForm] = useState({
     comment: '',
     submissionUrl: ''
   });
 
   const allowedExtensions = ['pdf', 'doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx', 'zip', 'txt'];
+
+  // 🚀 Helper function to check if deadline has passed
+  const isDeadlinePassed = (dueDate, dueTime) => {
+    if (!dueDate) return false;
+    const timeStr = dueTime || '23:59';
+    const dueDateTime = new Date(`${dueDate}T${timeStr}`);
+    return new Date() > dueDateTime;
+  };
 
   // 1. Fetch Student Profile & Enrolled Classes
   useEffect(() => {
@@ -47,7 +81,6 @@ const StudentAssignmentsView = () => {
         const snap = await getDocs(collection(db, 'classes'));
         const allClasses = snap.docs.map(d => ({ id: d.id, ...d.data() }));
 
-        // Filter classes matching student's grade and section
         const enrolledClasses = allClasses.filter(cls => {
           const clsGrade = cls.gradeClass || cls.className;
           const matchGrade = studentGrade ? clsGrade === studentGrade : true;
@@ -61,6 +94,7 @@ const StudentAssignmentsView = () => {
         }
       } catch (error) {
         console.error("Error fetching student classes:", error);
+        toast.error("Failed to load enrolled classes.");
       } finally {
         setLoading(false);
       }
@@ -90,6 +124,7 @@ const StudentAssignmentsView = () => {
         setSubmissions(fetchedSubs);
       } catch (error) {
         console.error("Error fetching assignments and submissions:", error);
+        toast.error("Failed to sync coursework tasks.");
       }
     };
 
@@ -122,6 +157,12 @@ const StudentAssignmentsView = () => {
   };
 
   const openSubmitModal = (task) => {
+    // 🚀 Check deadline before opening modal
+    if (isDeadlinePassed(task.dueDate, task.dueTime)) {
+      toast.error("Deadline has passed. Submissions and edits are locked.");
+      return;
+    }
+
     setActiveTask(task);
     setSelectedFile(null);
     setFileError('');
@@ -144,6 +185,14 @@ const StudentAssignmentsView = () => {
   const handleFileUploadSubmit = async (e) => {
     e.preventDefault();
     if (!activeTask) return;
+
+    // 🚀 Strict deadline guard check
+    if (isDeadlinePassed(activeTask.dueDate, activeTask.dueTime)) {
+      toast.error("The submission deadline has passed. Action denied.");
+      closeSubmitModal();
+      return;
+    }
+
     setSubmitLoading(true);
 
     try {
@@ -174,15 +223,15 @@ const StudentAssignmentsView = () => {
         submittedAt: new Date().toISOString()
       };
 
-      // Use a unique document ID: studentId_assignmentId for upserting submissions
       const subDocId = `${user.uid}_${activeTask.id}`;
       await setDoc(doc(db, 'submissions', subDocId), recordPayload, { merge: true });
 
       setSubmissions(prev => ({ ...prev, [activeTask.id]: recordPayload }));
       closeSubmitModal();
+      toast.success("Assignment submitted successfully!");
     } catch (error) {
       console.error("Error uploading assignment solution:", error);
-      alert("Failed to submit assignment. Please try again.");
+      toast.error("Failed to submit assignment. Please try again.");
     } finally {
       setSubmitLoading(false);
     }
@@ -196,7 +245,7 @@ const StudentAssignmentsView = () => {
   };
 
   return (
-    <div className="space-y-6 relative">
+    <div className="space-y-6 relative animate-in fade-in duration-200">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-800">Assignments Hub</h1>
@@ -204,7 +253,7 @@ const StudentAssignmentsView = () => {
         </div>
 
         {classes.length > 0 && (
-          <div className="flex items-center gap-2 bg-white px-4 py-2.5 rounded-xl border border-slate-200 shadow-sm w-full sm:w-auto">
+          <div className="flex items-center gap-2 bg-white px-4 py-2.5 rounded-xl border border-slate-200 shadow-sm w-full sm:w-auto focus-within:border-sky-500 focus-within:ring-1 focus-within:ring-sky-500">
             <BookOpen className="h-4 w-4 text-sky-600 shrink-0" />
             <select
               value={selectedClass}
@@ -222,9 +271,7 @@ const StudentAssignmentsView = () => {
       </div>
 
       {loading ? (
-        <div className="bg-white p-12 text-center rounded-2xl border border-slate-200">
-          <div className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-slate-200 border-t-sky-600"></div>
-        </div>
+        <AssignmentCardsSkeleton />
       ) : classes.length === 0 ? (
         <div className="bg-white p-12 rounded-2xl border border-slate-200 text-center shadow-sm text-slate-400">
           <AlertCircle className="h-8 w-8 mx-auto mb-2 text-slate-300" />
@@ -239,22 +286,30 @@ const StudentAssignmentsView = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {assignments.map((task) => {
             const mySubmission = submissions[task.id];
+            const deadlinePassed = isDeadlinePassed(task.dueDate, task.dueTime);
+
             return (
               <div key={task.id} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow">
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2.5">
-                      <div className="h-9 w-9 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center shrink-0">
+                      <div className="h-9 w-9 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center shrink-0 border border-sky-100 shadow-xs">
                         <Clipboard className="h-4 w-4" />
                       </div>
                       <h3 className="text-lg font-bold text-slate-800 line-clamp-1">{task.title}</h3>
                     </div>
+
+                    {/* 🚀 Dynamic Status Badge including Deadline Passed check */}
                     {mySubmission ? (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100 shrink-0">
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-100 shrink-0 shadow-xs">
                         <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" /> Submitted
                       </span>
+                    ) : deadlinePassed ? (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-rose-50 text-rose-700 border border-rose-100 shrink-0 shadow-xs">
+                        <Lock className="h-3 w-3" /> Closed
+                      </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-100 shrink-0">
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-50 text-amber-700 border border-amber-100 shrink-0 shadow-xs">
                         Pending
                       </span>
                     )}
@@ -267,7 +322,7 @@ const StudentAssignmentsView = () => {
                       href={task.attachmentUrl} 
                       target="_blank" 
                       rel="noreferrer"
-                      className="inline-flex items-center gap-2 mt-2 px-3 py-1.5 rounded-xl bg-slate-100 text-slate-700 text-xs font-semibold border border-slate-200 hover:bg-sky-50 hover:text-sky-700 hover:border-sky-200 transition-colors w-fit max-w-full"
+                      className="inline-flex items-center gap-2 mt-2 px-3 py-1.5 rounded-xl bg-slate-50 text-slate-700 text-xs font-semibold border border-slate-200 hover:bg-sky-50 hover:text-sky-700 hover:border-sky-200 transition-colors w-fit max-w-full shadow-xs"
                     >
                       <Paperclip className="h-3.5 w-3.5 shrink-0 text-slate-400" />
                       <span className="truncate">{task.attachmentName || 'Reference Document'}</span>
@@ -275,7 +330,7 @@ const StudentAssignmentsView = () => {
                   )}
 
                   {mySubmission?.comment && (
-                    <div className="p-3 bg-sky-50/50 rounded-xl border border-sky-100 text-xs text-slate-600 mt-2">
+                    <div className="p-3 bg-sky-50/40 rounded-xl border border-sky-100 text-xs text-slate-600 mt-2">
                       <span className="font-bold text-sky-900 block mb-0.5">Your Notes:</span>
                       {mySubmission.comment}
                     </div>
@@ -296,7 +351,7 @@ const StudentAssignmentsView = () => {
                 <div className="pt-4 border-t border-slate-100 mt-5 space-y-3">
                   <div className="flex justify-between items-center text-xs font-semibold text-slate-400">
                     <span className="flex items-center gap-1"><FileText className="h-3.5 w-3.5" /> Max Marks: <span className="text-slate-700">{task.maxMarks}</span></span>
-                    <span className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-rose-50 text-rose-600">
+                    <span className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-rose-50 text-rose-600 border border-rose-100">
                       <Calendar className="h-3.5 w-3.5" /> Due: {task.dueDate} {task.dueTime ? `at ${formatTime(task.dueTime)}` : ''}
                     </span>
                   </div>
@@ -315,12 +370,22 @@ const StudentAssignmentsView = () => {
                       <span className="text-xs text-slate-400 font-medium">No file attached</span>
                     )}
 
-                    <button
-                      onClick={() => openSubmitModal(task)}
-                      className="px-4 py-2 bg-sky-600 text-white rounded-xl text-xs font-semibold hover:bg-sky-700 transition-colors shadow-sm cursor-pointer ml-auto flex items-center gap-1.5 shrink-0"
-                    >
-                      <UploadCloud className="h-3.5 w-3.5" /> {mySubmission ? 'Edit Submission' : 'Submit Work'}
-                    </button>
+                    {/* 🚀 Conditional Button Lock if Deadline Passed */}
+                    {deadlinePassed ? (
+                      <button
+                        disabled
+                        className="px-4 py-2 bg-slate-200 text-slate-500 rounded-xl text-xs font-semibold shadow-none flex items-center gap-1.5 shrink-0 ml-auto cursor-not-allowed"
+                      >
+                        <Lock className="h-3.5 w-3.5" /> Deadline Passed
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => openSubmitModal(task)}
+                        className="px-4 py-2 bg-sky-600 text-white rounded-xl text-xs font-semibold hover:bg-sky-700 transition-colors shadow-sm cursor-pointer ml-auto flex items-center gap-1.5 shrink-0"
+                      >
+                        <UploadCloud className="h-3.5 w-3.5" /> {mySubmission ? 'Edit Submission' : 'Submit Work'}
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -329,12 +394,11 @@ const StudentAssignmentsView = () => {
         </div>
       )}
 
-      {/* Fully Responsive Scrollable Submission Modal */}
+      {/* Submission Modal */}
       {isModalOpen && activeTask && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-3 sm:p-4 overflow-y-auto">
-          <div className="w-full max-w-lg bg-white rounded-2xl shadow-xl border border-slate-100 flex flex-col max-h-[90vh] my-auto overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-3 sm:p-4 overflow-y-auto animate-in fade-in duration-200">
+          <div className="w-full max-w-lg bg-white rounded-2xl shadow-xl border border-slate-100 flex flex-col max-h-[90vh] my-auto overflow-hidden animate-in zoom-in-95 duration-200">
             
-            {/* Modal Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0 bg-white z-10">
               <h3 className="text-lg font-bold text-slate-800">Submit Assignment</h3>
               <button onClick={closeSubmitModal} className="text-slate-400 hover:text-slate-600 rounded-lg p-1 hover:bg-slate-50 transition-colors cursor-pointer">
@@ -342,7 +406,6 @@ const StudentAssignmentsView = () => {
               </button>
             </div>
 
-            {/* Scrollable Form Body */}
             <form onSubmit={handleFileUploadSubmit} className="p-6 space-y-4 overflow-y-auto flex-1">
               <div>
                 <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Target Task</p>
@@ -357,7 +420,7 @@ const StudentAssignmentsView = () => {
                   rows={3}
                   value={submissionForm.comment}
                   onChange={(e) => setSubmissionForm({ ...submissionForm, comment: e.target.value })}
-                  className="block w-full px-3 py-2.5 border border-slate-200 bg-slate-50 rounded-xl text-sm focus:outline-none focus:border-sky-500 focus:bg-white resize-none"
+                  className="block w-full px-3 py-2.5 border border-slate-200 bg-slate-50 rounded-xl text-sm focus:outline-none focus:border-sky-500 focus:bg-white resize-none transition-colors"
                   placeholder="Add any comments or notes for your instructor..."
                 />
               </div>
@@ -370,7 +433,7 @@ const StudentAssignmentsView = () => {
                   type="url"
                   value={submissionForm.submissionUrl}
                   onChange={(e) => setSubmissionForm({ ...submissionForm, submissionUrl: e.target.value })}
-                  className="block w-full px-3 py-2.5 border border-slate-200 bg-slate-50 rounded-xl text-sm focus:outline-none focus:border-sky-500 focus:bg-white"
+                  className="block w-full px-3 py-2.5 border border-slate-200 bg-slate-50 rounded-xl text-sm focus:outline-none focus:border-sky-500 focus:bg-white transition-colors"
                   placeholder="https://github.com/username/project"
                 />
               </div>
@@ -441,7 +504,6 @@ const StudentAssignmentsView = () => {
                 {fileError && <p className="text-xs font-semibold text-rose-600 mt-1.5 flex items-center gap-1">⚠️ {fileError}</p>}
               </div>
 
-              {/* Modal Footer Buttons pinned inside scrollable or at bottom */}
               <div className="flex justify-end gap-3 pt-4 border-t border-slate-100 mt-6 shrink-0 bg-white sticky bottom-0">
                 <button
                   type="button"
