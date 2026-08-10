@@ -2,7 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../../firebase/config';
-import { Users, GraduationCap, BookOpen, DollarSign, TrendingUp, AlertCircle } from 'lucide-react';
+// 🚀 Fixed: Clean single import with Banknote icon included
+import { Users, GraduationCap, BookOpen, Banknote, TrendingUp, AlertCircle } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 
 const AnalyticsOverview = () => {
@@ -38,7 +39,7 @@ const AnalyticsOverview = () => {
         const allClasses = classesSnap.docs.map(doc => doc.data());
         const totalClasses = classesSnap.size;
 
-        // 🚀 3. UPDATED AGGREGATION LOGIC: Group strictly by Class Name only (Ignore Sections)
+        // 3. UPDATED AGGREGATION LOGIC: Group strictly by Class Name only (Ignore Sections)
         const classMap = {};
 
         // Create groups based on active scheduled classes
@@ -99,7 +100,8 @@ const AnalyticsOverview = () => {
     { title: 'Total Students', value: stats.students, icon: GraduationCap, color: 'text-indigo-600', bg: 'bg-indigo-50 border-indigo-100' },
     { title: 'Total Teachers', value: stats.teachers, icon: Users, color: 'text-emerald-600', bg: 'bg-emerald-50 border-emerald-100' },
     { title: 'Active Classes', value: stats.courses, icon: BookOpen, color: 'text-sky-600', bg: 'bg-sky-50 border-sky-100' },
-    { title: 'Fee Collection', value: stats.fees, icon: DollarSign, color: 'text-amber-600', bg: 'bg-amber-50 border-amber-100' },
+    // 🚀 Uses Banknote universally for any currency
+    { title: 'Fee Collection', value: stats.fees, icon: Banknote, color: 'text-amber-600', bg: 'bg-amber-50 border-amber-100' },
   ];
 
   if (loading) {
