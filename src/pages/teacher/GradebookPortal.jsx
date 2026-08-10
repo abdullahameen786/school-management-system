@@ -235,26 +235,40 @@ const GradebookPortal = () => {
 
   const activeEval = [...exams, ...assignments].find(e => e.id === selectedEvaluation);
 
-  // 🚀 Strict Evaluation Lock Check based on Date & Time
+  // 🚀 Separate Dual Locking Logic:
+  // 1. Mid / Final Exams (Admin Created): Locked AFTER due date (now > dueDate)
+  // 2. Assignments / Quizzes / CPs (Teacher Created): Locked BEFORE due date (now < dueDate)
   let isEvaluationLocked = false;
-  const evalTitleLower = (activeEval?.title || '').toLowerCase();
-  const evalTypeLower = (activeEval?.evalType || '').toLowerCase();
-  const isMidOrFinal = evalTitleLower.includes('mid') || evalTitleLower.includes('final') || evalTypeLower.includes('mid') || evalTypeLower.includes('final');
+  const now = new Date();
 
-  if (activeEval?.type === 'exam' && isMidOrFinal && activeEval?.dueDate) {
-    const now = new Date();
-    const dueDateObj = new Date(activeEval.dueDate);
-    if (now > dueDateObj) {
-      isEvaluationLocked = true;
+  if (activeEval) {
+    const evalTitleLower = (activeEval.title || '').toLowerCase();
+    const evalTypeLower = (activeEval.evalType || '').toLowerCase();
+    const isMidOrFinal = evalTitleLower.includes('mid') || evalTitleLower.includes('final') || evalTypeLower.includes('mid') || evalTypeLower.includes('final');
+
+    if (activeEval.type === 'exam' && isMidOrFinal && activeEval.dueDate) {
+      // Locked AFTER due date
+      const dueDateObj = new Date(activeEval.dueDate);
+      if (now > dueDateObj) {
+        isEvaluationLocked = true;
+      }
+    } else if (activeEval.dueDate) {
+      // Teacher-created assignment/quiz/CP: Locked BEFORE due date
+      const dueDateObj = new Date(activeEval.dueDate);
+      if (now < dueDateObj) {
+        isEvaluationLocked = true;
+      }
     }
   }
 
   const handleSaveGrades = async (e) => {
     e.preventDefault();
     
-    // 🚀 Block saving if deadline has passed
     if (isEvaluationLocked) {
-      toast.error("Evaluation window is locked. Submission deadline has passed.");
+      const msg = (activeEval?.type === 'exam') 
+        ? "Evaluation window is locked. Submission deadline has passed." 
+        : "You cannot evaluate or mark this assignment before its due date and time.";
+      toast.error(msg);
       return;
     }
 
@@ -382,15 +396,23 @@ const GradebookPortal = () => {
           <Lock className="h-4 w-4 text-amber-600 shrink-0" />
           <div>
             <p className="font-bold text-amber-900">Evaluation Window Locked</p>
-            <p className="text-amber-700 mt-0.5">The submission deadline for this exam has passed (<span className="font-bold">{activeEval?.dueDate?.replace('T', ' at ')}</span>). Scores can no longer be modified.</p>
+            <p className="text-amber-700 mt-0.5">
+              {activeEval?.type === 'exam' 
+                ? `Submission deadline has passed (${activeEval?.dueDate?.replace('T', ' at ')}). Scores can no longer be modified.`
+                : `You cannot evaluate this assignment before its due date and time (${activeEval?.dueDate?.replace('T', ' at ')}).`}
+            </p>
           </div>
         </div>
       )}
 
-      {activeEval?.dueDate && isMidOrFinal && !isEvaluationLocked && (
+      {activeEval?.dueDate && !isEvaluationLocked && (
         <div className="p-3 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-xl flex items-center gap-3 text-xs font-semibold shadow-xs">
           <Calendar className="h-4 w-4 text-emerald-600 shrink-0" />
-          <span>Exam Submission Deadline: <strong className="underline">{activeEval.dueDate.replace('T', ' at ')}</strong>. Enter or update marks before this time.</span>
+          <span>
+            {activeEval?.type === 'exam'
+              ? `Exam Deadline Active. Enter or update marks before ${activeEval.dueDate.replace('T', ' at ')}.`
+              : `Due date reached (${activeEval.dueDate.replace('T', ' at ')}). You can now evaluate and mark student submissions.`}
+          </span>
         </div>
       )}
 
