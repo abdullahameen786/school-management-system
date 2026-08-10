@@ -15,10 +15,12 @@ const StudentDashboardHome = () => {
       if (!user?.uid) return;
       setLoading(true);
       try {
-        // 1. Fetch student's profile to get their section (e.g. "A", "B", etc.)
+        // 1. Fetch student's profile to get their gradeClass and section
         const userDocRef = doc(db, 'users', user.uid);
         const userSnap = await getDoc(userDocRef);
-        const studentSection = userSnap.exists() ? userSnap.data().section : null;
+        const studentData = userSnap.exists() ? userSnap.data() : {};
+        const studentGrade = studentData.gradeClass || studentData.className;
+        const studentSection = studentData.section;
 
         // 2. Fetch all classes from database
         const querySnapshot = await getDocs(collection(db, 'classes'));
@@ -27,10 +29,13 @@ const StudentDashboardHome = () => {
           ...doc.data()
         }));
 
-        // 3. Filter classes matching student's section (if section is assigned)
-        const filteredClasses = studentSection 
-          ? allClasses.filter(cls => cls.section === studentSection)
-          : allClasses;
+        // 3. Filter classes strictly matching BOTH student's Grade and Section
+        const filteredClasses = allClasses.filter(cls => {
+          const clsGrade = cls.gradeClass || cls.className;
+          const matchGrade = studentGrade ? clsGrade === studentGrade : true;
+          const matchSection = studentSection ? cls.section === studentSection : true;
+          return matchGrade && matchSection;
+        });
 
         setClasses(filteredClasses);
       } catch (error) {

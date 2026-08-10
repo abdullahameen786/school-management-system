@@ -22,10 +22,10 @@ import TeacherAnnouncementsView from './pages/teacher/TeacherAnnouncementsView';
 
 // Student Layout & Pages
 import StudentLayout from './components/layout/StudentLayout';
-import StudentDashboardHome from './pages/student/StudentDashboardHome'; // 🚀 Corrected Path
+import StudentDashboardHome from './pages/student/StudentDashboardHome';
+import StudentAttendanceView from './pages/student/StudentAttendanceView'; // 🚀 Imported Student Attendance View
 
 // Placeholder Sub-Pages for Remaining Student Portals
-const StudentAttendanceView = () => <div className="text-xl font-bold text-slate-800">My Attendance Portal</div>;
 const StudentGrades = () => <div className="text-xl font-bold text-slate-800">My Grades Portal</div>;
 const StudentAssignments = () => <div className="text-xl font-bold text-slate-800">Student Assignments Hub</div>;
 const StudentAnnouncements = () => <div className="text-xl font-bold text-slate-800">Student Notice Board</div>;
