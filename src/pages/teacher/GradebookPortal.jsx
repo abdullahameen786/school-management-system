@@ -138,6 +138,7 @@ const GradebookPortal = () => {
     try {
       const docRef = await addDoc(collection(db, 'exams'), {
         classId: selectedClass,
+        teacherId: user.uid,
         title: examFormData.title.trim(),
         maxMarks: parseInt(examFormData.maxMarks),
         createdAt: new Date().toISOString()
@@ -214,8 +215,12 @@ const GradebookPortal = () => {
 
         <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto items-center">
           <div className="flex items-center gap-2 bg-white px-4 py-2.5 rounded-xl border border-slate-200 shadow-sm w-full sm:w-auto">
-            <BookOpen className="h-4 w-4 text-emerald-600" />
+            <label htmlFor="classSelectorSelect" className="text-emerald-600 cursor-pointer">
+              <BookOpen className="h-4 w-4" />
+            </label>
             <select
+              id="classSelectorSelect"
+              name="selectedClass"
               value={selectedClass}
               onChange={(e) => setSelectedClass(e.target.value)}
               className="bg-transparent border-none text-sm font-semibold text-slate-700 focus:outline-none cursor-pointer w-full"
@@ -229,8 +234,12 @@ const GradebookPortal = () => {
           </div>
 
           <div className="flex items-center gap-2 bg-white px-4 py-2.5 rounded-xl border border-slate-200 shadow-sm w-full sm:w-auto">
-            <Clipboard className="h-4 w-4 text-emerald-600" />
+            <label htmlFor="evaluationSelectDropdown" className="text-emerald-600 cursor-pointer">
+              <Clipboard className="h-4 w-4" />
+            </label>
             <select
+              id="evaluationSelectDropdown"
+              name="selectedEvaluation"
               value={selectedEvaluation}
               onChange={(e) => setSelectedEvaluation(e.target.value)}
               className="bg-transparent border-none text-sm font-semibold text-slate-700 focus:outline-none cursor-pointer w-full"
@@ -262,7 +271,7 @@ const GradebookPortal = () => {
           <button
             onClick={() => setIsExamModalOpen(true)}
             disabled={!selectedClass}
-            className="flex items-center justify-center gap-2 bg-emerald-100 text-emerald-700 px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-emerald-200 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+            className="flex items-center justify-center gap-2 bg-emerald-100 text-emerald-700 px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-emerald-200 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap cursor-pointer"
             title="Create Custom Exam or Quiz"
           >
             <Plus className="h-4 w-4" /> New Exam
@@ -272,7 +281,7 @@ const GradebookPortal = () => {
 
       {successMsg && (
         <div className="p-4 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl flex items-center gap-2 text-sm font-medium animate-in fade-in duration-200">
-          <CheckCircle2 className="h-4 w-4 text-emerald-500" /> {successMsg}
+          <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" /> {successMsg}
         </div>
       )}
 
@@ -396,15 +405,17 @@ const GradebookPortal = () => {
           <div className="w-full max-w-sm bg-white rounded-2xl shadow-xl border border-slate-100 transform transition-all animate-in fade-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
               <h3 className="text-lg font-bold text-slate-800">Create Custom Exam</h3>
-              <button onClick={() => setIsExamModalOpen(false)} className="text-slate-400 hover:text-slate-600 rounded-lg p-1 hover:bg-slate-50 transition-colors">
+              <button onClick={() => setIsExamModalOpen(false)} className="text-slate-400 hover:text-slate-600 rounded-lg p-1 hover:bg-slate-50 transition-colors cursor-pointer">
                 <X className="h-5 w-5" />
               </button>
             </div>
 
             <form onSubmit={handleCreateExam} className="p-6 space-y-4">
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1">Exam Title</label>
+                <label htmlFor="examTitleInput" className="block text-sm font-semibold text-slate-700 mb-1">Exam Title</label>
                 <input
+                  id="examTitleInput"
+                  name="examTitle"
                   type="text"
                   required
                   value={examFormData.title}
@@ -415,8 +426,10 @@ const GradebookPortal = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1">Maximum Marks</label>
+                <label htmlFor="examMaxMarksInput" className="block text-sm font-semibold text-slate-700 mb-1">Maximum Marks</label>
                 <input
+                  id="examMaxMarksInput"
+                  name="examMaxMarks"
                   type="number"
                   min="1"
                   required
