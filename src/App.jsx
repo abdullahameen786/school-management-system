@@ -20,11 +20,11 @@ import GradebookPortal from './pages/teacher/GradebookPortal';
 import AssignmentsHub from './pages/teacher/AssignmentsHub';
 import TeacherAnnouncementsView from './pages/teacher/TeacherAnnouncementsView';
 
-// Student Layout & Placeholder Pages (Can be replaced with real page files later)
+// Student Layout & Pages
 import StudentLayout from './components/layout/StudentLayout';
+import StudentDashboardHome from './pages/student/StudentDashboardHome'; // 🚀 Corrected Path
 
-
-const StudentDashboard = () => <div className="text-xl font-bold text-slate-800">Student Dashboard</div>;
+// Placeholder Sub-Pages for Remaining Student Portals
 const StudentAttendanceView = () => <div className="text-xl font-bold text-slate-800">My Attendance Portal</div>;
 const StudentGrades = () => <div className="text-xl font-bold text-slate-800">My Grades Portal</div>;
 const StudentAssignments = () => <div className="text-xl font-bold text-slate-800">Student Assignments Hub</div>;
@@ -102,7 +102,7 @@ function App() {
               </ProtectedRoute>
             }
           >
-            <Route index element={<StudentDashboard />} />
+            <Route index element={<StudentDashboardHome />} />
             <Route path="attendance" element={<StudentAttendanceView />} />
             <Route path="grades" element={<StudentGrades />} />
             <Route path="assignments" element={<StudentAssignments />} />
