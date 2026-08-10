@@ -82,11 +82,12 @@ const StudentAttendance = () => {
         const targetGrade = currentClassObj?.gradeClass || currentClassObj?.className;
         const targetSection = currentClassObj?.section;
 
-        // 🚀 Fixed: Properly filter students matching class grade and section + update state
+        // Properly filter students matching class grade and section + update state
         const fetchedStudents = sSnap.docs
           .map((doc) => ({ id: doc.id, ...doc.data() }))
           .filter((student) => {
-            const matchesClass = !targetGrade || student.className === targetGrade;
+            const studentGrade = student.gradeClass || student.className;
+            const matchesClass = !targetGrade || studentGrade === targetGrade;
             const matchesSection = !targetSection || student.section === targetSection;
             return matchesClass && matchesSection;
           });
@@ -119,7 +120,7 @@ const StudentAttendance = () => {
     fetchStudentsAndAttendance();
   }, [selectedClass, selectedDate, myClasses]);
 
-  // 3. Mark Student Status
+  // 3. Mark Student Status with Subject/Course Name included in database payload
   const markStatus = async (student, status) => {
     const studentId = student.id;
 
@@ -127,6 +128,10 @@ const StudentAttendance = () => {
     setAttendanceMap((prev) => ({ ...prev, [studentId]: status }));
 
     try {
+      // Get the currently selected class object to retrieve its subject name
+      const currentClassObj = myClasses.find((c) => c.id === selectedClass);
+      const subjectName = currentClassObj?.subjectName || currentClassObj?.subject || currentClassObj?.course || currentClassObj?.className || 'General Course';
+
       // Document ID: studentId_classId_YYYY-MM-DD
       const recordId = `${studentId}_${selectedClass}_${selectedDate}`;
       await setDoc(
@@ -136,6 +141,7 @@ const StudentAttendance = () => {
           targetName: student.name || 'Student',
           targetRole: "student",
           classId: selectedClass,
+          subjectName: subjectName, // 🚀 Stored course/subject name in attendance collection
           date: selectedDate,
           status: status,
           markedBy: user.uid,
@@ -210,13 +216,13 @@ const StudentAttendance = () => {
           <table className="min-w-full divide-y divide-slate-200">
             <thead className="bg-slate-50">
               <tr>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                <th scope="col" className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
                   Student Profile
                 </th>
-                <th className="px-6 py-4 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                <th scope="col" className="px-6 py-4 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider">
                   Current Status
                 </th>
-                <th className="px-6 py-4 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                <th scope="col" className="px-6 py-4 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider">
                   Mark Action
                 </th>
               </tr>

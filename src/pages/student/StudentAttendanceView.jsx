@@ -34,22 +34,7 @@ const StudentAttendanceView = () => {
           return matchGrade && matchSection;
         });
 
-        // 3. Extract unique courses assigned to this specific class and section
-        const courseSet = new Set();
-        studentClasses.forEach(cls => {
-          const sub = cls.subjectName || cls.subject || cls.course || cls.className;
-          if (sub) courseSet.add(sub);
-        });
-
-        const coursesList = Array.from(courseSet);
-        setUniqueCourses(coursesList);
-
-        // Auto-select the first assigned course by default
-        if (coursesList.length > 0) {
-          setSelectedCourse(coursesList[0]);
-        }
-
-        // 4. Fetch attendance records for this student
+        // 3. Fetch attendance records for this student first so we can map courses accurately
         const q = query(
           collection(db, 'attendance'),
           where('targetId', '==', user.uid)
@@ -63,6 +48,27 @@ const StudentAttendanceView = () => {
         records.sort((a, b) => new Date(b.date) - new Date(a.date));
         setAttendanceRecords(records);
 
+        // 4. Extract unique courses from both assigned classes and attendance records
+        const courseSet = new Set();
+        
+        studentClasses.forEach(cls => {
+          const sub = cls.subjectName || cls.subject || cls.course || cls.className;
+          if (sub) courseSet.add(sub.trim());
+        });
+
+        records.forEach(r => {
+          const sub = r.subjectName || r.subject || r.course || r.className;
+          if (sub) courseSet.add(sub.trim());
+        });
+
+        const coursesList = Array.from(courseSet);
+        setUniqueCourses(coursesList);
+
+        // Auto-select the first assigned course by default if available
+        if (coursesList.length > 0) {
+          setSelectedCourse(coursesList[0]);
+        }
+
       } catch (error) {
         console.error("Error fetching student attendance data:", error);
       } finally {
@@ -73,11 +79,11 @@ const StudentAttendanceView = () => {
     fetchData();
   }, [user]);
 
-  // Filter records based on selected course dropdown value
+  // Robust filtering records based on selected course dropdown value
   const filteredRecords = selectedCourse 
     ? attendanceRecords.filter(r => {
-        const recordSub = r.subjectName || r.subject || r.course || r.className;
-        return recordSub === selectedCourse;
+        const recordSub = (r.subjectName || r.subject || r.course || r.className || '').trim();
+        return recordSub.toLowerCase() === selectedCourse.trim().toLowerCase();
       })
     : [];
 
@@ -95,7 +101,7 @@ const StudentAttendanceView = () => {
           <p className="text-slate-500 text-sm mt-1">Review your daily attendance history and overall percentage.</p>
         </div>
 
-        {/* Course Filter Dropdown (Strictly Assigned Courses, No "All Courses") */}
+        {/* Course Filter Dropdown */}
         {uniqueCourses.length > 0 && (
           <div className="flex items-center gap-2 bg-white px-4 py-2.5 rounded-xl border border-slate-200 shadow-sm w-full sm:w-auto">
             <BookOpen className="h-4 w-4 text-sky-600 shrink-0" />
