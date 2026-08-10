@@ -17,9 +17,9 @@ import TeacherLayout from './components/layout/TeacherLayout';
 import TeacherClasses from './pages/teacher/TeacherClasses';
 import StudentAttendance from './pages/teacher/StudentAttendance';
 import GradebookPortal from './pages/teacher/GradebookPortal';
+import AssignmentsHub from './pages/teacher/AssignmentsHub';
 
-// Placeholder Components for Remaining Teacher Sub-Pages
-const AssignmentsHub = () => <div className="text-xl font-bold text-slate-800">Assignments Hub</div>;
+// Placeholder Component for Remaining Teacher Sub-Page
 const TeacherAnnouncements = () => <div className="text-xl font-bold text-slate-800">Teacher Notice Board</div>;
 
 // 🔒 Foolproof Protected Route Component

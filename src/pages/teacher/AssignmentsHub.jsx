@@ -239,8 +239,12 @@ const AssignmentsHub = () => {
 
         <div className="flex items-center gap-3 w-full sm:w-auto">
           <div className="flex items-center gap-2 bg-white px-4 py-2.5 rounded-xl border border-slate-200 shadow-sm w-full sm:w-auto">
-            <BookOpen className="h-4 w-4 text-emerald-600" />
+            <label htmlFor="classFilterSelect" className="text-emerald-600 cursor-pointer">
+              <BookOpen className="h-4 w-4" />
+            </label>
             <select
+              id="classFilterSelect"
+              name="classFilter"
               value={selectedClassFilter}
               onChange={(e) => setSelectedClassFilter(e.target.value)}
               className="bg-transparent border-none text-sm font-semibold text-slate-700 focus:outline-none cursor-pointer w-full"
@@ -262,7 +266,7 @@ const AssignmentsHub = () => {
       </div>
 
       {loading ? (
-        <div className="bg-white p-12 text-center">
+        <div className="bg-white p-12 text-center rounded-2xl border border-slate-200">
           <div className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-slate-200 border-t-emerald-600"></div>
         </div>
       ) : assignments.length === 0 ? (
@@ -346,7 +350,7 @@ const AssignmentsHub = () => {
               <h3 className="text-lg font-bold text-slate-800">
                 {editingAssignmentId ? 'Edit Assignment' : 'Publish New Assignment'}
               </h3>
-              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 rounded-lg p-1 hover:bg-slate-50 transition-colors">
+              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 rounded-lg p-1 hover:bg-slate-50 transition-colors cursor-pointer">
                 <X className="h-5 w-5" />
               </button>
             </div>
@@ -354,8 +358,10 @@ const AssignmentsHub = () => {
             <form onSubmit={handlePublish} className="p-6 space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-1">Class / Grade</label>
+                  <label htmlFor="assignmentGradeSelect" className="block text-sm font-semibold text-slate-700 mb-1">Class / Grade</label>
                   <select
+                    id="assignmentGradeSelect"
+                    name="gradeClass"
                     value={formData.gradeClass}
                     onChange={(e) => setFormData({ ...formData, gradeClass: e.target.value })}
                     className="block w-full px-3 py-2.5 border border-slate-200 bg-slate-50 rounded-xl text-sm font-semibold text-slate-700 focus:outline-none focus:border-emerald-500 focus:bg-white cursor-pointer"
@@ -364,8 +370,10 @@ const AssignmentsHub = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-1">Section</label>
+                  <label htmlFor="assignmentSectionSelect" className="block text-sm font-semibold text-slate-700 mb-1">Section</label>
                   <select
+                    id="assignmentSectionSelect"
+                    name="section"
                     value={formData.section}
                     onChange={(e) => setFormData({ ...formData, section: e.target.value })}
                     className="block w-full px-3 py-2.5 border border-slate-200 bg-slate-50 rounded-xl text-sm font-semibold text-slate-700 focus:outline-none focus:border-emerald-500 focus:bg-white cursor-pointer"
@@ -376,8 +384,10 @@ const AssignmentsHub = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1">Subject Name</label>
+                <label htmlFor="assignmentSubjectInput" className="block text-sm font-semibold text-slate-700 mb-1">Subject Name</label>
                 <input
+                  id="assignmentSubjectInput"
+                  name="subjectName"
                   type="text"
                   required
                   value={formData.subjectName}
@@ -388,8 +398,10 @@ const AssignmentsHub = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1">Task Title</label>
+                <label htmlFor="assignmentTitleInput" className="block text-sm font-semibold text-slate-700 mb-1">Task Title</label>
                 <input
+                  id="assignmentTitleInput"
+                  name="title"
                   type="text"
                   required
                   value={formData.title}
@@ -400,8 +412,10 @@ const AssignmentsHub = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1">Task Details / Instructions</label>
+                <label htmlFor="assignmentDescTextarea" className="block text-sm font-semibold text-slate-700 mb-1">Task Details / Instructions</label>
                 <textarea
+                  id="assignmentDescTextarea"
+                  name="description"
                   required
                   rows={3}
                   value={formData.description}
@@ -459,8 +473,10 @@ const AssignmentsHub = () => {
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-1">Max Marks</label>
+                  <label htmlFor="assignmentMaxMarksInput" className="block text-sm font-semibold text-slate-700 mb-1">Max Marks</label>
                   <input
+                    id="assignmentMaxMarksInput"
+                    name="maxMarks"
                     type="number"
                     min="1"
                     required
@@ -470,8 +486,10 @@ const AssignmentsHub = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-1">Due Date</label>
+                  <label htmlFor="assignmentDueDateInput" className="block text-sm font-semibold text-slate-700 mb-1">Due Date</label>
                   <input
+                    id="assignmentDueDateInput"
+                    name="dueDate"
                     type="date"
                     required
                     value={formData.dueDate}
@@ -480,8 +498,10 @@ const AssignmentsHub = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-1">Due Time</label>
+                  <label htmlFor="assignmentDueTimeInput" className="block text-sm font-semibold text-slate-700 mb-1">Due Time</label>
                   <input
+                    id="assignmentDueTimeInput"
+                    name="dueTime"
                     type="time"
                     required
                     value={formData.dueTime}
