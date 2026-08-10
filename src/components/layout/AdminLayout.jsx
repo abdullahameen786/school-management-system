@@ -8,6 +8,7 @@ import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage
 import { auth, db, storage } from '../../firebase/config';
 import { toast } from 'react-hot-toast';
 import imageCompression from 'browser-image-compression';
+import { ShieldAlert } from 'lucide-react';
 import { 
   LayoutDashboard, Users, Calendar, ClipboardCheck, Megaphone, 
   LogOut, Menu, X, KeyRound, Eye, EyeOff, Settings, Camera, Loader2, Trash2 
@@ -196,6 +197,7 @@ const AdminLayout = () => {
     { name: 'User Management', path: '/admin/users', icon: Users },
     { name: 'Class Scheduling', path: '/admin/scheduling', icon: Calendar },
     { name: 'Teacher Attendance', path: '/admin/attendance', icon: ClipboardCheck },
+    { name: 'Audit Logs', path: '/admin/logs', icon: ShieldAlert },
     { name: 'Announcements', path: '/admin/announcements', icon: Megaphone },
   ];
 

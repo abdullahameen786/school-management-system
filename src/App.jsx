@@ -3,6 +3,7 @@ import React, { Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, Link } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast'; // 🚀 Beautiful Global Popups
 import { AuthProvider, useAuth } from './context/AuthContext';
+import AdminAuditLogsView from './pages/admin/AdminAuditLogsView';
 
 // -------------------------------------------------------------
 // 1. LAZY LOADING (Splitting code to make the app lightning fast)
@@ -133,6 +134,7 @@ function App() {
                 <Route path="users" element={<UserManagement />} />
                 <Route path="scheduling" element={<ClassScheduling />} /> 
                 <Route path="attendance" element={<TeacherAttendance />} />
+                <Route path="logs" element={<AdminAuditLogsView />} />
                 <Route path="announcements" element={<Announcements />} />
               </Route>
 
