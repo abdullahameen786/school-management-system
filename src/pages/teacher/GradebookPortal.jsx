@@ -4,7 +4,7 @@ import { collection, query, where, getDocs, doc, getDoc, setDoc, addDoc } from '
 import { db } from '../../firebase/config';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-hot-toast'; 
-import { logAuditAction } from '../../utils/auditLogger'; // 🚀 Audit Logging Utility
+import { logAuditAction } from '../../utils/auditLogger'; 
 import { BookOpen, Clipboard, Save, AlertCircle, Lock, Plus, X, ExternalLink, FileText, Paperclip, MessageSquare, Loader2 } from 'lucide-react';
 
 const GradebookSkeleton = ({ isAssignment }) => (
@@ -56,7 +56,9 @@ const GradebookPortal = () => {
 
   const [isExamModalOpen, setIsExamModalOpen] = useState(false);
   const [examSubmitLoading, setExamSubmitLoading] = useState(false);
-  const [examFormData, setExamFormData] = useState({ title: '', maxMarks: '100' });
+  
+  // 🚀 Updated Exam Form State with Type and Number selectors
+  const [examFormData, setExamFormData] = useState({ type: 'Assignment', number: '1', maxMarks: '10' });
 
   useEffect(() => {
     const fetchClasses = async () => {
@@ -82,21 +84,26 @@ const GradebookPortal = () => {
 
       const gradeToCheck = activeClassObj.gradeClass || activeClassObj.className;
       const sectionToCheck = activeClassObj.section;
+      const subjectToCheck = activeClassObj.subjectName || activeClassObj.subject || activeClassObj.course;
 
+      // 1. Fetch Assignments matching Class, Section, and Subject precisely
       const qA = query(collection(db, 'assignments'), where('teacherId', '==', user.uid));
       const snapA = await getDocs(qA);
       
       const fetchedAssignments = snapA.docs
         .map(doc => ({ id: doc.id, ...doc.data(), type: 'assignment' }))
         .filter(a => {
-          const matchesGrade = (a.gradeClass === gradeToCheck);
-          const matchesSec = (a.section === sectionToCheck);
           const matchesClassId = (a.classId === selectedClass);
-          return matchesClassId || (matchesGrade && matchesSec);
+          const matchesGrade = (a.gradeClass === gradeToCheck || a.className === gradeToCheck);
+          const matchesSec = (a.section === sectionToCheck);
+          const matchesSubject = (!subjectToCheck || a.subject === subjectToCheck || a.subjectName === subjectToCheck);
+          
+          return matchesClassId || (matchesGrade && matchesSec && matchesSubject);
         });
 
       setAssignments(fetchedAssignments);
       
+      // 2. Fetch Exams strictly tied to this class ID
       const qE = query(collection(db, 'exams'), where('classId', '==', selectedClass));
       const snapE = await getDocs(qE);
       const fetchedExams = snapE.docs.map(doc => ({ id: doc.id, ...doc.data(), type: 'exam' }));
@@ -188,28 +195,38 @@ const GradebookPortal = () => {
     e.preventDefault();
     setExamSubmitLoading(true);
     try {
+      const activeClassObj = myClasses.find(c => c.id === selectedClass);
+      const subjectName = activeClassObj?.subjectName || activeClassObj?.subject || activeClassObj?.course || 'General Course';
+      
+      // Auto-generate title like Assignment-1, Quiz-2, CP-3
+      const generatedTitle = `${examFormData.type}-${examFormData.number}`;
+
       const docRef = await addDoc(collection(db, 'exams'), {
         classId: selectedClass,
         teacherId: user.uid,
-        title: examFormData.title.trim(),
+        subject: subjectName,
+        title: generatedTitle,
+        evalType: examFormData.type,
+        evalNumber: examFormData.number,
         maxMarks: parseInt(examFormData.maxMarks),
         createdAt: new Date().toISOString()
       });
       
       await logAuditAction(user, 'EXAM_CREATED', {
-        examTitle: examFormData.title.trim(),
+        examTitle: generatedTitle,
+        subject: subjectName,
         maxMarks: examFormData.maxMarks,
         classId: selectedClass
       });
 
       setIsExamModalOpen(false);
-      setExamFormData({ title: '', maxMarks: '100' });
+      setExamFormData({ type: 'Assignment', number: '1', maxMarks: '10' });
       setSelectedEvaluation(docRef.id);
       fetchEvaluations();
-      toast.success('Custom Exam environment configured!');
+      toast.success(`${generatedTitle} configured successfully!`);
     } catch (error) {
       console.error("Error creating exam:", error);
-      toast.error('Failed to configure exam container.');
+      toast.error('Failed to configure evaluation container.');
     } finally {
       setExamSubmitLoading(false);
     }
@@ -237,14 +254,12 @@ const GradebookPortal = () => {
 
         const recordId = `${student.id}_${selectedEvaluation}`;
         
-        // 🚀 Fetch existing record safely with getDoc
         const existingDocRef = doc(db, 'grades', recordId);
         const existingDocSnap = await getDoc(existingDocRef);
         const oldMarks = existingDocSnap.exists() ? existingDocSnap.data().obtainedMarks : null;
 
         if (oldMarks === parsedScore) return;
 
-        // Save new grades
         await setDoc(existingDocRef, {
           studentId: student.id,
           studentName: student.name,
@@ -257,7 +272,6 @@ const GradebookPortal = () => {
           updatedAt: new Date().toISOString()
         }, { merge: true });
 
-        // Log modification
         await logAuditAction(user, oldMarks !== null ? 'GRADE_MODIFIED' : 'GRADE_RECORD_SAVED', {
           studentId: student.id,
           studentName: student.name,
@@ -529,7 +543,7 @@ const GradebookPortal = () => {
         )}
       </form>
 
-      {/* Create Custom Exam Modal */}
+      {/* 🚀 Updated Create Custom Exam Modal with Type and Number Dropdowns */}
       {isExamModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
           <div className="w-full max-w-sm bg-white rounded-2xl shadow-xl border border-slate-100 transform transition-all animate-in zoom-in-95 duration-200">
@@ -542,16 +556,37 @@ const GradebookPortal = () => {
 
             <form onSubmit={handleCreateExam} className="p-6 space-y-4">
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1">Exam Title</label>
-                <input
-                  type="text"
-                  required
-                  autoFocus
-                  value={examFormData.title}
-                  onChange={(e) => setExamFormData({ ...examFormData, title: e.target.value })}
-                  className="block w-full px-3 py-2.5 border border-slate-200 bg-slate-50 rounded-xl text-sm focus:outline-none focus:border-emerald-500 focus:bg-white transition-colors"
-                  placeholder="e.g. Mid-1, Quiz 3..."
-                />
+                <label className="block text-sm font-semibold text-slate-700 mb-1">Evaluation Type</label>
+                <select
+                  value={examFormData.type}
+                  onChange={(e) => setExamFormData({ ...examFormData, type: e.target.value })}
+                  className="block w-full px-3 py-2.5 border border-slate-200 bg-slate-50 rounded-xl text-sm font-semibold text-slate-700 focus:outline-none focus:border-emerald-500 focus:bg-white transition-colors cursor-pointer"
+                >
+                  <option value="Assignment">Assignment</option>
+                  <option value="Quiz">Quiz</option>
+                  <option value="CP">CP (Class Performance)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1">Sequence Number</label>
+                <select
+                  value={examFormData.number}
+                  onChange={(e) => setExamFormData({ ...examFormData, number: e.target.value })}
+                  className="block w-full px-3 py-2.5 border border-slate-200 bg-slate-50 rounded-xl text-sm font-semibold text-slate-700 focus:outline-none focus:border-emerald-500 focus:bg-white transition-colors cursor-pointer"
+                >
+                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
+                    <option key={num} value={num}>{num}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Title Preview */}
+              <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-between text-xs">
+                <span className="font-semibold text-slate-500">Generated Title:</span>
+                <span className="font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-100">
+                  {examFormData.type}-{examFormData.number}
+                </span>
               </div>
 
               <div>
@@ -562,7 +597,7 @@ const GradebookPortal = () => {
                   required
                   value={examFormData.maxMarks}
                   onChange={(e) => setExamFormData({ ...examFormData, maxMarks: e.target.value })}
-                  className="block w-full px-3 py-2.5 border border-slate-200 bg-slate-50 rounded-xl text-sm focus:outline-none focus:border-emerald-500 focus:bg-white transition-colors"
+                  className="block w-full px-3 py-2.5 border border-slate-200 bg-slate-50 rounded-xl text-sm font-semibold text-slate-700 focus:outline-none focus:border-emerald-500 focus:bg-white transition-colors"
                 />
               </div>
 
