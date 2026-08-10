@@ -23,12 +23,12 @@ import TeacherAnnouncementsView from './pages/teacher/TeacherAnnouncementsView';
 // Student Layout & Pages
 import StudentLayout from './components/layout/StudentLayout';
 import StudentDashboardHome from './pages/student/StudentDashboardHome';
-import StudentAttendanceView from './pages/student/StudentAttendanceView'; // 🚀 Imported Student Attendance View
+import StudentAttendanceView from './pages/student/StudentAttendanceView';
+import StudentAnnouncementsView from './pages/student/StudentAnnouncementsView'; // 🚀 Imported Student Announcements View
 
 // Placeholder Sub-Pages for Remaining Student Portals
 const StudentGrades = () => <div className="text-xl font-bold text-slate-800">My Grades Portal</div>;
 const StudentAssignments = () => <div className="text-xl font-bold text-slate-800">Student Assignments Hub</div>;
-const StudentAnnouncements = () => <div className="text-xl font-bold text-slate-800">Student Notice Board</div>;
 
 // 🔒 Foolproof Protected Route Component
 const ProtectedRoute = ({ allowedRoles, children }) => {
@@ -106,7 +106,7 @@ function App() {
             <Route path="attendance" element={<StudentAttendanceView />} />
             <Route path="grades" element={<StudentGrades />} />
             <Route path="assignments" element={<StudentAssignments />} />
-            <Route path="announcements" element={<StudentAnnouncements />} />
+            <Route path="announcements" element={<StudentAnnouncementsView />} />
           </Route>
 
           {/* Fallback Catch-All Route */}
