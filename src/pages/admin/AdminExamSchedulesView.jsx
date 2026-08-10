@@ -1,10 +1,10 @@
 // src/pages/admin/AdminExamSchedulesView.jsx
 import React, { useState, useEffect } from 'react';
-import { collection, getDocs, addDoc, query, where, deleteDoc, doc } from 'firebase/firestore';
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import { toast } from 'react-hot-toast';
 import { logAuditAction } from '../../utils/auditLogger';
-import { Calendar, BookOpen, Award, Plus, Trash2, Clock, AlertCircle, Loader2 } from 'lucide-react';
+import { Calendar, BookOpen, Award, Plus, Trash2, Edit2, Clock, AlertCircle, Loader2, X } from 'lucide-react';
 
 const AdminExamSchedulesView = () => {
   const [classes, setClasses] = useState([]);
@@ -12,6 +12,7 @@ const AdminExamSchedulesView = () => {
   const [exams, setExams] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [editingExamId, setEditingExamId] = useState(null);
 
   const [formData, setFormData] = useState({
     title: 'Mid-1',
@@ -56,7 +57,7 @@ const AdminExamSchedulesView = () => {
     fetchExams();
   }, [selectedClassId]);
 
-  const handleScheduleExam = async (e) => {
+  const handleSaveExam = async (e) => {
     e.preventDefault();
     if (!formData.dueDate) {
       toast.error("Please select a valid due date.");
@@ -68,36 +69,73 @@ const AdminExamSchedulesView = () => {
       const activeClass = classes.find(c => c.id === selectedClassId);
       const subjectName = activeClass?.subjectName || activeClass?.className || 'General Course';
 
-      const examPayload = {
-        classId: selectedClassId,
-        teacherId: activeClass?.teacherId || 'Unassigned',
-        subject: subjectName,
-        title: formData.title, // Strict to Mid-1, Mid-2, Final Exam
-        maxMarks: parseInt(formData.maxMarks),
-        dueDate: formData.dueDate,
-        createdAt: new Date().toISOString()
-      };
+      if (editingExamId) {
+        // Update existing exam
+        const examRef = doc(db, 'exams', editingExamId);
+        await updateDoc(examRef, {
+          title: formData.title,
+          maxMarks: parseInt(formData.maxMarks),
+          dueDate: formData.dueDate
+        });
 
-      const docRef = await addDoc(collection(db, 'exams'), examPayload);
+        await logAuditAction({ name: 'Administrator', role: 'admin', uid: 'admin' }, 'EXAM_UPDATED', {
+          examId: editingExamId,
+          examTitle: formData.title,
+          subject: subjectName,
+          dueDate: formData.dueDate,
+          maxMarks: formData.maxMarks
+        });
 
-      // Audit Log
-      await logAuditAction({ name: 'Administrator', role: 'admin', uid: 'admin' }, 'EXAM_SCHEDULED', {
-        examTitle: formData.title,
-        classId: selectedClassId,
-        subject: subjectName,
-        dueDate: formData.dueDate,
-        maxMarks: formData.maxMarks
-      });
+        setExams(prev => prev.map(e => e.id === editingExamId ? { ...e, ...formData, maxMarks: parseInt(formData.maxMarks) } : e));
+        toast.success(`${formData.title} updated successfully!`);
+      } else {
+        // Create new exam
+        const examPayload = {
+          classId: selectedClassId,
+          teacherId: activeClass?.teacherId || 'Unassigned',
+          subject: subjectName,
+          title: formData.title,
+          maxMarks: parseInt(formData.maxMarks),
+          dueDate: formData.dueDate,
+          createdAt: new Date().toISOString()
+        };
 
-      setExams(prev => [...prev, { id: docRef.id, ...examPayload }]);
-      toast.success(`${formData.title} scheduled successfully for ${subjectName}!`);
+        const docRef = await addDoc(collection(db, 'exams'), examPayload);
+
+        await logAuditAction({ name: 'Administrator', role: 'admin', uid: 'admin' }, 'EXAM_SCHEDULED', {
+          examTitle: formData.title,
+          classId: selectedClassId,
+          subject: subjectName,
+          dueDate: formData.dueDate,
+          maxMarks: formData.maxMarks
+        });
+
+        setExams(prev => [...prev, { id: docRef.id, ...examPayload }]);
+        toast.success(`${formData.title} scheduled successfully for ${subjectName}!`);
+      }
+
+      setEditingExamId(null);
       setFormData({ title: 'Mid-1', maxMarks: '100', dueDate: '' });
     } catch (error) {
-      console.error("Error scheduling exam:", error);
-      toast.error("Failed to schedule exam container.");
+      console.error("Error saving exam:", error);
+      toast.error("Failed to save exam container.");
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleEditExam = (exam) => {
+    setEditingExamId(exam.id);
+    setFormData({
+      title: exam.title,
+      maxMarks: exam.maxMarks.toString(),
+      dueDate: exam.dueDate || ''
+    });
+  };
+
+  const handleCancelEdit = () => {
+    setEditingExamId(null);
+    setFormData({ title: 'Mid-1', maxMarks: '100', dueDate: '' });
   };
 
   const handleDeleteExam = async (examId, examTitle) => {
@@ -140,17 +178,24 @@ const AdminExamSchedulesView = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Schedule Form */}
+        {/* Schedule / Edit Form */}
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 h-fit space-y-4">
-          <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-            <Award className="h-5 w-5 text-indigo-600" />
-            Schedule Exam Session
-          </h2>
+          <div className="flex justify-between items-center">
+            <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+              <Award className="h-5 w-5 text-indigo-600" />
+              {editingExamId ? 'Edit Examination' : 'Schedule Exam Session'}
+            </h2>
+            {editingExamId && (
+              <button onClick={handleCancelEdit} className="text-xs text-rose-600 font-bold hover:underline cursor-pointer">
+                Cancel
+              </button>
+            )}
+          </div>
           <p className="text-xs text-slate-400">
             Target Class: <span className="font-bold text-slate-700">{selectedClassObj?.gradeClass || 'Class'} ({selectedClassObj?.subjectName || 'Subject'})</span>
           </p>
 
-          <form onSubmit={handleScheduleExam} className="space-y-4 pt-2">
+          <form onSubmit={handleSaveExam} className="space-y-4 pt-2">
             <div>
               <label className="block text-sm font-semibold text-slate-700 mb-1">Examination Title</label>
               <select
@@ -193,8 +238,8 @@ const AdminExamSchedulesView = () => {
               disabled={submitting || !selectedClassId}
               className="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 rounded-xl text-sm font-semibold shadow-sm transition-colors cursor-pointer disabled:bg-indigo-300"
             >
-              {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-              Publish Examination
+              {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : editingExamId ? <Edit2 className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+              {editingExamId ? 'Update Examination' : 'Publish Examination'}
             </button>
           </form>
         </div>
@@ -211,7 +256,7 @@ const AdminExamSchedulesView = () => {
                   <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Exam Type</th>
                   <th className="px-6 py-3 text-center text-xs font-semibold text-slate-500 uppercase">Max Scale</th>
                   <th className="px-6 py-3 text-center text-xs font-semibold text-slate-500 uppercase">Due Deadline</th>
-                  <th className="px-6 py-3 text-right text-xs font-semibold text-slate-500 uppercase">Action</th>
+                  <th className="px-6 py-3 text-right text-xs font-semibold text-slate-500 uppercase">Actions</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-slate-200 text-sm">
@@ -245,13 +290,22 @@ const AdminExamSchedulesView = () => {
                           </span>
                         </td>
                         <td className="px-6 py-4 text-right">
-                          <button
-                            onClick={() => handleDeleteExam(exam.id, exam.title)}
-                            className="p-2 text-rose-500 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
-                            title="Delete Schedule"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
+                          <div className="flex justify-end gap-1">
+                            <button
+                              onClick={() => handleEditExam(exam)}
+                              className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-xl transition-colors cursor-pointer"
+                              title="Edit Schedule"
+                            >
+                              <Edit2 className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteExam(exam.id, exam.title)}
+                              className="p-2 text-rose-500 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
+                              title="Delete Schedule"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
