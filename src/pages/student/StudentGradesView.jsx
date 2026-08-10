@@ -9,7 +9,7 @@ const StudentGradesView = () => {
   const { user } = useAuth();
   const [grades, setGrades] = useState([]);
   const [uniqueCourses, setUniqueCourses] = useState([]);
-  const [selectedCourse, setSelectedCourse] = useState('');
+  const [selectedCourse, setSelectedCourse] = useState('all'); // 🚀 Default to 'all'
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -48,7 +48,7 @@ const StudentGradesView = () => {
         fetchedGrades.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
         setGrades(fetchedGrades);
 
-        // 4. Extract unique course/subject options strictly from student's classes and grades
+        // 4. Extract unique course/subject options securely from student's classes and grades
         const courseSet = new Set();
         studentClasses.forEach(cls => {
           const sub = cls.subjectName || cls.subject || cls.course || cls.className;
@@ -63,10 +63,6 @@ const StudentGradesView = () => {
         const coursesList = Array.from(courseSet);
         setUniqueCourses(coursesList);
 
-        if (coursesList.length > 0) {
-          setSelectedCourse(coursesList[0]);
-        }
-
       } catch (error) {
         console.error("Error fetching student grades and courses:", error);
       } finally {
@@ -77,15 +73,15 @@ const StudentGradesView = () => {
     fetchGradesAndCourses();
   }, [user]);
 
-  // Filter grades based on selected course dropdown value
-  const filteredGrades = selectedCourse 
-    ? grades.filter(item => {
+  // Filter grades based on selected course dropdown value ('all' or specific course)
+  const filteredGrades = selectedCourse === 'all'
+    ? grades
+    : grades.filter(item => {
         const itemSub = (item.subjectName || item.subject || item.course || item.className || '').trim();
         return itemSub.toLowerCase() === selectedCourse.trim().toLowerCase();
-      })
-    : [];
+      });
 
-  // Calculate stats for filtered course
+  // Calculate stats for filtered view
   const totalEvaluations = filteredGrades.length;
   const averagePercentage = totalEvaluations > 0 
     ? (filteredGrades.reduce((acc, curr) => acc + ((curr.obtainedMarks / curr.maxMarks) * 100), 0) / totalEvaluations).toFixed(1)
@@ -99,21 +95,20 @@ const StudentGradesView = () => {
           <p className="text-slate-500 text-sm mt-1">Review your scores across coursework assignments, midterms, and finals.</p>
         </div>
 
-        {/* Course Filter Dropdown */}
-        {uniqueCourses.length > 0 && (
-          <div className="flex items-center gap-2 bg-white px-4 py-2.5 rounded-xl border border-slate-200 shadow-sm w-full sm:w-auto">
-            <BookOpen className="h-4 w-4 text-sky-600 shrink-0" />
-            <select
-              value={selectedCourse}
-              onChange={(e) => setSelectedCourse(e.target.value)}
-              className="bg-transparent border-none text-sm font-semibold text-slate-700 focus:outline-none cursor-pointer w-full"
-            >
-              {uniqueCourses.map((course) => (
-                <option key={course} value={course}>{course}</option>
-              ))}
-            </select>
-          </div>
-        )}
+        {/* Course Filter Dropdown with "All Courses" Option */}
+        <div className="flex items-center gap-2 bg-white px-4 py-2.5 rounded-xl border border-slate-200 shadow-sm w-full sm:w-auto">
+          <BookOpen className="h-4 w-4 text-sky-600 shrink-0" />
+          <select
+            value={selectedCourse}
+            onChange={(e) => setSelectedCourse(e.target.value)}
+            className="bg-transparent border-none text-sm font-semibold text-slate-700 focus:outline-none cursor-pointer w-full"
+          >
+            <option value="all">All Courses</option>
+            {uniqueCourses.map((course) => (
+              <option key={course} value={course}>{course}</option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {/* Summary Cards */}
@@ -159,18 +154,11 @@ const StudentGradesView = () => {
                     <div className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-slate-200 border-t-sky-600"></div>
                   </td>
                 </tr>
-              ) : uniqueCourses.length === 0 ? (
-                <tr>
-                  <td colSpan="5" className="px-6 py-12 text-center text-slate-500">
-                    <AlertCircle className="h-8 w-8 mx-auto text-slate-400 mb-3" />
-                    No courses assigned to your class yet.
-                  </td>
-                </tr>
               ) : filteredGrades.length === 0 ? (
                 <tr>
                   <td colSpan="5" className="px-6 py-12 text-center text-slate-500">
                     <AlertCircle className="h-8 w-8 mx-auto text-slate-400 mb-3" />
-                    No grade records published for {selectedCourse} yet.
+                    No grade records found.
                   </td>
                 </tr>
               ) : (
