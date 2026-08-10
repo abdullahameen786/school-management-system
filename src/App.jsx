@@ -16,6 +16,7 @@ const AnalyticsOverview = lazy(() => import('./pages/admin/AnalyticsOverview'));
 const UserManagement = lazy(() => import('./pages/admin/UserManagement'));
 const ClassScheduling = lazy(() => import('./pages/admin/ClassScheduling'));
 const TeacherAttendance = lazy(() => import('./pages/admin/TeacherAttendance'));
+import AdminExamSchedulesView from './pages/admin/AdminExamSchedulesView';
 const Announcements = lazy(() => import('./pages/admin/Announcements'));
 
 // Teacher Components
@@ -135,6 +136,7 @@ function App() {
                 <Route path="scheduling" element={<ClassScheduling />} /> 
                 <Route path="attendance" element={<TeacherAttendance />} />
                 <Route path="logs" element={<AdminAuditLogsView />} />
+                <Route path="exams" element={<AdminExamSchedulesView />} />
                 <Route path="announcements" element={<Announcements />} />
               </Route>
 

@@ -198,6 +198,7 @@ const AdminLayout = () => {
     { name: 'Class Scheduling', path: '/admin/scheduling', icon: Calendar },
     { name: 'Teacher Attendance', path: '/admin/attendance', icon: ClipboardCheck },
     { name: 'Audit Logs', path: '/admin/logs', icon: ShieldAlert },
+    { name: 'Exam Schedules', path: '/admin/exams', icon: Calendar },
     { name: 'Announcements', path: '/admin/announcements', icon: Megaphone },
   ];
 
