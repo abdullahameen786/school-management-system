@@ -14,10 +14,10 @@ import Announcements from './pages/admin/Announcements';
 
 // Teacher Layout & Pages
 import TeacherLayout from './components/layout/TeacherLayout';
+import TeacherClasses from './pages/teacher/TeacherClasses';
+import StudentAttendance from './pages/teacher/StudentAttendance'; // 🚀 Imported actual StudentAttendance component
 
-// Placeholder Components for Teacher Sub-Pages (can be replaced with actual page files later)
-const TeacherClasses = () => <div className="text-xl font-bold text-slate-800">My Assigned Classes</div>;
-const StudentAttendance = () => <div className="text-xl font-bold text-slate-800">Student Attendance Portal</div>;
+// Placeholder Components for Teacher Sub-Pages (Will be replaced as we build them)
 const GradebookPortal = () => <div className="text-xl font-bold text-slate-800">Gradebook Portal</div>;
 const AssignmentsHub = () => <div className="text-xl font-bold text-slate-800">Assignments Hub</div>;
 const TeacherAnnouncements = () => <div className="text-xl font-bold text-slate-800">Teacher Notice Board</div>;

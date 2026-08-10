@@ -19,13 +19,19 @@ import {
   BookOpen,
 } from "lucide-react";
 
+// Helper function to get correct local date string (YYYY-MM-DD)
+const getLocalDateString = () => {
+  const localDate = new Date();
+  const offset = localDate.getTimezoneOffset();
+  const adjustedDate = new Date(localDate.getTime() - (offset * 60 * 1000));
+  return adjustedDate.toISOString().split("T")[0];
+};
+
 const StudentAttendance = () => {
   const { user } = useAuth();
   const [myClasses, setMyClasses] = useState([]);
   const [selectedClass, setSelectedClass] = useState("");
-  const [selectedDate, setSelectedDate] = useState(
-    new Date().toISOString().split("T")[0],
-  );
+  const [selectedDate, setSelectedDate] = useState(getLocalDateString());
 
   const [students, setStudents] = useState([]);
   const [attendanceMap, setAttendanceMap] = useState({});
@@ -55,29 +61,37 @@ const StudentAttendance = () => {
   // 2. Fetch Students and their Attendance for the selected class and date
   useEffect(() => {
     const fetchStudentsAndAttendance = async () => {
-      if (!selectedClass) return;
+      if (!selectedClass) {
+        setStudents([]);
+        setLoading(false);
+        return;
+      }
+      
       setLoading(true);
 
       try {
-        // Fetch all students (In a production app, you'd filter by students enrolled in this specific class)
-        // Inside StudentAttendance.jsx (Student fetch useEffect)
+        // Fetch all students from users collection
         const sQuery = query(
           collection(db, "users"),
           where("role", "==", "student"),
         );
         const sSnap = await getDocs(sQuery);
 
-        // Get the currently selected class object to check its section
+        // Get the currently selected class object to check its grade and section
         const currentClassObj = myClasses.find((c) => c.id === selectedClass);
+        const targetGrade = currentClassObj?.gradeClass || currentClassObj?.className;
         const targetSection = currentClassObj?.section;
 
-        // Filter students strictly matching the class section
+        // 🚀 Fixed: Properly filter students matching class grade and section + update state
         const fetchedStudents = sSnap.docs
           .map((doc) => ({ id: doc.id, ...doc.data() }))
-          .filter(
-            (student) =>
-              !targetSection || student.section === targetCourseSection,
-          );
+          .filter((student) => {
+            const matchesClass = !targetGrade || student.className === targetGrade;
+            const matchesSection = !targetSection || student.section === targetSection;
+            return matchesClass && matchesSection;
+          });
+
+        setStudents(fetchedStudents);
 
         // Fetch existing attendance for this class and date
         const aQuery = query(
@@ -103,10 +117,12 @@ const StudentAttendance = () => {
     };
 
     fetchStudentsAndAttendance();
-  }, [selectedClass, selectedDate]);
+  }, [selectedClass, selectedDate, myClasses]);
 
   // 3. Mark Student Status
-  const markStatus = async (studentId, status) => {
+  const markStatus = async (student, status) => {
+    const studentId = student.id;
+
     // Optimistic UI update
     setAttendanceMap((prev) => ({ ...prev, [studentId]: status }));
 
@@ -117,6 +133,7 @@ const StudentAttendance = () => {
         doc(db, "attendance", recordId),
         {
           targetId: studentId,
+          targetName: student.name || 'Student',
           targetRole: "student",
           classId: selectedClass,
           date: selectedDate,
@@ -140,15 +157,19 @@ const StudentAttendance = () => {
             Student Attendance
           </h1>
           <p className="text-slate-500 text-sm mt-1">
-            Mark daily presence for your assigned rosters.
+            Mark daily presence for your assigned class rosters.
           </p>
         </div>
 
         <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
           {/* Class Selector Dropdown */}
           <div className="flex items-center gap-3 bg-white px-4 py-2.5 rounded-xl border border-slate-200 shadow-sm w-full sm:w-auto">
-            <BookOpen className="h-5 w-5 text-emerald-600" />
+            <label htmlFor="classSelectDropdown" className="text-emerald-600 cursor-pointer">
+              <BookOpen className="h-5 w-5" />
+            </label>
             <select
+              id="classSelectDropdown"
+              name="selectedClass"
               value={selectedClass}
               onChange={(e) => setSelectedClass(e.target.value)}
               className="bg-transparent border-none focus:outline-none text-sm font-semibold text-slate-700 cursor-pointer w-full"
@@ -158,7 +179,7 @@ const StudentAttendance = () => {
               ) : (
                 myClasses.map((cls) => (
                   <option key={cls.id} value={cls.id}>
-                    {cls.className} {cls.section ? `(${cls.section})` : ""}
+                    {cls.subjectName || cls.className} - {cls.gradeClass || cls.className} {cls.section ? `(Sec ${cls.section})` : ""}
                   </option>
                 ))
               )}
@@ -167,11 +188,15 @@ const StudentAttendance = () => {
 
           {/* Date Picker */}
           <div className="flex items-center gap-3 bg-white px-4 py-2.5 rounded-xl border border-slate-200 shadow-sm w-full sm:w-auto">
-            <CalendarIcon className="h-5 w-5 text-emerald-600" />
+            <label htmlFor="attendanceDatePicker" className="text-emerald-600 cursor-pointer">
+              <CalendarIcon className="h-5 w-5" />
+            </label>
             <input
+              id="attendanceDatePicker"
+              name="attendanceDate"
               type="date"
               value={selectedDate}
-              max={new Date().toISOString().split("T")[0]}
+              max={getLocalDateString()}
               onChange={(e) => setSelectedDate(e.target.value)}
               className="bg-transparent border-none focus:outline-none text-sm font-semibold text-slate-700 cursor-pointer w-full"
             />
@@ -203,24 +228,18 @@ const StudentAttendance = () => {
                     <div className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-slate-300 border-t-emerald-600"></div>
                   </td>
                 </tr>
-              ) : students.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan="3"
-                    className="px-6 py-12 text-center text-slate-500"
-                  >
-                    <AlertCircle className="h-8 w-8 mx-auto text-slate-400 mb-3" />
-                    No students found in the system to mark.
-                  </td>
-                </tr>
               ) : !selectedClass ? (
                 <tr>
-                  <td
-                    colSpan="3"
-                    className="px-6 py-12 text-center text-slate-500"
-                  >
+                  <td colSpan="3" className="px-6 py-12 text-center text-slate-500">
                     <BookOpen className="h-8 w-8 mx-auto text-slate-400 mb-3" />
                     Please select a class to view the student roster.
+                  </td>
+                </tr>
+              ) : students.length === 0 ? (
+                <tr>
+                  <td colSpan="3" className="px-6 py-12 text-center text-slate-500">
+                    <AlertCircle className="h-8 w-8 mx-auto text-slate-400 mb-3" />
+                    No students found enrolled in this class/section.
                   </td>
                 </tr>
               ) : (
@@ -273,21 +292,21 @@ const StudentAttendance = () => {
                       <td className="px-6 py-4 whitespace-nowrap text-right">
                         <div className="flex justify-end gap-2">
                           <button
-                            onClick={() => markStatus(student.id, "present")}
+                            onClick={() => markStatus(student, "present")}
                             className={`p-2 rounded-lg transition-colors border cursor-pointer ${currentStatus === "present" ? "bg-emerald-50 border-emerald-200 text-emerald-600 shadow-sm" : "border-slate-200 text-slate-400 hover:bg-emerald-50 hover:border-emerald-200 hover:text-emerald-600"}`}
                             title="Mark Present"
                           >
                             <Check className="h-4 w-4" />
                           </button>
                           <button
-                            onClick={() => markStatus(student.id, "late")}
+                            onClick={() => markStatus(student, "late")}
                             className={`p-2 rounded-lg transition-colors border cursor-pointer ${currentStatus === "late" ? "bg-amber-50 border-amber-200 text-amber-600 shadow-sm" : "border-slate-200 text-slate-400 hover:bg-amber-50 hover:border-amber-200 hover:text-amber-600"}`}
                             title="Mark Late"
                           >
                             <Clock className="h-4 w-4" />
                           </button>
                           <button
-                            onClick={() => markStatus(student.id, "absent")}
+                            onClick={() => markStatus(student, "absent")}
                             className={`p-2 rounded-lg transition-colors border cursor-pointer ${currentStatus === "absent" ? "bg-rose-50 border-rose-200 text-rose-600 shadow-sm" : "border-slate-200 text-slate-400 hover:bg-rose-50 hover:border-rose-200 hover:text-rose-600"}`}
                             title="Mark Absent"
                           >

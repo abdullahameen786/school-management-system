@@ -3,13 +3,16 @@ import React, { useState, useEffect } from 'react';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import { useAuth } from '../../context/AuthContext';
-import { BookOpen, Clock, Users, MapPin, Layers, CalendarDays } from 'lucide-react';
+import { BookOpen, Clock, MapPin, Layers, CalendarDays } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const TeacherClasses = () => {
   const { user } = useAuth();
   const [classes, setClasses] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // Standard Weekday reference for sorting days chronologically
+  const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
   useEffect(() => {
     const fetchMyClasses = async () => {
@@ -64,57 +67,70 @@ const TeacherClasses = () => {
       ) : (
         /* Class Cards Grid */
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-          {classes.map((cls) => (
-            <div key={cls.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden hover:shadow-md transition-all group relative flex flex-col">
-              {/* Card Header */}
-              <div className="p-6 border-b border-slate-100">
-                <div className="flex justify-between items-start mb-4">
-                  <div className="h-12 w-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-                    <BookOpen className="h-6 w-6" />
+          {classes.map((cls) => {
+            // 🚀 Properly sort assigned days chronologically
+            const sortedDays = Array.isArray(cls.days) 
+              ? [...cls.days].sort((a, b) => weekDays.indexOf(a) - weekDays.indexOf(b)).join(', ') 
+              : cls.days || 'TBA';
+
+            return (
+              <div key={cls.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden hover:shadow-md transition-all group relative flex flex-col justify-between">
+                
+                {/* Card Header */}
+                <div className="p-6 border-b border-slate-100">
+                  <div className="flex justify-between items-start mb-4">
+                    <div className="h-12 w-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                      <BookOpen className="h-6 w-6" />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-100">
+                        {cls.gradeClass || cls.className || 'Class'}
+                      </span>
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-100">
+                        <Layers className="h-3.5 w-3.5" />
+                        Sec {cls.section || 'A'}
+                      </span>
+                    </div>
                   </div>
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100">
-                    <Layers className="h-3.5 w-3.5" />
-                    Section {cls.section || 'N/A'}
-                  </span>
+                  {/* 🚀 Fixed: Display subjectName correctly from scheduling collection */}
+                  <h3 className="text-xl font-bold text-slate-800 mb-1">{cls.subjectName || cls.className || 'Unnamed Subject'}</h3>
                 </div>
-                <h3 className="text-xl font-bold text-slate-800 mb-1">{cls.className}</h3>
-              </div>
 
-              {/* Card Details */}
-              <div className="p-6 bg-slate-50/50 flex-1 space-y-4">
-                <div className="flex items-center gap-3 text-sm text-slate-600">
-                  <CalendarDays className="h-4 w-4 text-slate-400" />
-                  <span className="font-medium text-slate-700">
-                    {Array.isArray(cls.days) ? cls.days.join(', ') : cls.days}
-                  </span>
+                {/* Card Details */}
+                <div className="p-6 bg-slate-50/50 flex-1 space-y-3.5 text-sm">
+                  <div className="flex items-center gap-3 text-slate-600">
+                    <CalendarDays className="h-4 w-4 text-slate-400 shrink-0" />
+                    <span className="font-medium text-slate-700">{sortedDays}</span>
+                  </div>
+                  <div className="flex items-center gap-3 text-slate-600">
+                    <Clock className="h-4 w-4 text-slate-400 shrink-0" />
+                    <span>{cls.scheduleTime || '08:30 AM'}</span>
+                  </div>
+                  <div className="flex items-center gap-3 text-slate-600">
+                    <MapPin className="h-4 w-4 text-slate-400 shrink-0" />
+                    <span>Room: <span className="font-semibold text-slate-800">{cls.room || 'TBA'}</span></span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-3 text-sm text-slate-600">
-                  <Clock className="h-4 w-4 text-slate-400" />
-                  <span>{cls.scheduleTime}</span>
-                </div>
-                <div className="flex items-center gap-3 text-sm text-slate-600">
-                  <MapPin className="h-4 w-4 text-slate-400" />
-                  <span>Room: <span className="font-medium text-slate-700">{cls.room || 'TBA'}</span></span>
-                </div>
-              </div>
 
-              {/* Action Buttons */}
-              <div className="p-4 border-t border-slate-100 bg-white grid grid-cols-2 gap-3 mt-auto">
-                <Link 
-                  to="/teacher/attendance"
-                  className="py-2.5 px-4 bg-white border border-slate-200 text-slate-600 text-sm font-semibold rounded-xl text-center hover:bg-slate-50 hover:text-emerald-600 transition-colors"
-                >
-                  Attendance
-                </Link>
-                <Link 
-                  to="/teacher/assignments"
-                  className="py-2.5 px-4 bg-emerald-600 text-white text-sm font-semibold rounded-xl text-center hover:bg-emerald-700 shadow-sm transition-colors"
-                >
-                  Assignments
-                </Link>
+                {/* Action Buttons */}
+                <div className="p-4 border-t border-slate-100 bg-white grid grid-cols-2 gap-3 mt-auto">
+                  <Link 
+                    to="/teacher/attendance"
+                    className="py-2.5 px-4 bg-white border border-slate-200 text-slate-600 text-sm font-semibold rounded-xl text-center hover:bg-slate-50 hover:text-emerald-600 transition-colors shadow-xs"
+                  >
+                    Attendance
+                  </Link>
+                  <Link 
+                    to="/teacher/assignments"
+                    className="py-2.5 px-4 bg-emerald-600 text-white text-sm font-semibold rounded-xl text-center hover:bg-emerald-700 shadow-sm transition-colors"
+                  >
+                    Assignments
+                  </Link>
+                </div>
+
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
