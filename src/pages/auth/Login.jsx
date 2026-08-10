@@ -4,43 +4,43 @@ import { useNavigate } from 'react-router-dom';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../../firebase/config';
 import { useAuth } from '../../context/AuthContext';
-import { Lock, Mail, Eye, EyeOff } from 'lucide-react';
+import { toast } from 'react-hot-toast'; // 🚀 Premium Toast System integrated
+import { Lock, Mail, Eye, EyeOff, Loader2 } from 'lucide-react';
 
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState('');
   const [localLoading, setLocalLoading] = useState(false);
   
   const navigate = useNavigate();
-  const { user } = useAuth(); // 🚀 Import global user state
+  const { user } = useAuth(); 
 
-  // 🚀 Single Source of Truth Navigation
-  // Jaise hi Context ke andar user set hoga, automatically uske role ke mutabiq route kar diya jayega.
+  // Single Source of Truth Navigation Flow
   useEffect(() => {
     if (user && user.role) {
+      toast.success(`Welcome back, ${user.name || 'User'}!`); // Great dynamic UX touch
       navigate(`/${user.role}`, { replace: true });
     }
   }, [user, navigate]);
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    setError('');
     setLocalLoading(true);
 
     const typedEmail = email.trim().toLowerCase();
 
     try {
       console.log("Submitting credentials for:", typedEmail);
-      // Sirf Auth Sign In Trigger karna hai. Baqi sab Context sambhale ga.
       await signInWithEmailAndPassword(auth, typedEmail, password);
     } catch (err) {
       console.error("Operational catch branch active:", err);
+      
+      // Beautiful and clear notifications mapping instead of rigid state messages
       if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
-        setError('Invalid email or password credentials.');
+        toast.error('Invalid email or password credentials.');
       } else {
-        setError('Authentication server error. Please try again.');
+        toast.error('Authentication server error. Please try again.');
       }
       setLocalLoading(false);
     }
@@ -48,7 +48,7 @@ const Login = () => {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-12 sm:px-6 lg:px-8">
-      <div className="w-full max-w-md space-y-8 rounded-2xl bg-white p-8 shadow-xl border border-slate-100">
+      <div className="w-full max-w-md space-y-8 rounded-2xl bg-white p-8 shadow-xl border border-slate-100 animate-in fade-in slide-in-from-bottom-4 duration-300">
         
         <div className="flex flex-col items-center text-center">
           <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-600 text-white font-bold tracking-wider shadow-md shadow-indigo-200 text-lg">
@@ -61,12 +61,6 @@ const Login = () => {
             National Standard Education System
           </p>
         </div>
-
-        {error && (
-          <div className="rounded-xl bg-rose-50 p-4 text-sm text-rose-600 border border-rose-100 font-medium">
-            {error}
-          </div>
-        )}
 
         <form className="mt-8 space-y-6" onSubmit={handleLogin}>
           <div className="space-y-4 rounded-md">
@@ -83,6 +77,7 @@ const Login = () => {
                   name="email"
                   type="email"
                   required
+                  autoFocus // 🚀 Enhanced usability step
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="block w-full rounded-xl border border-slate-200 bg-slate-50/50 py-3 pl-10 pr-3 text-slate-900 placeholder-slate-400 focus:border-indigo-600 focus:bg-white focus:outline-none focus:ring-1 focus:ring-indigo-600 sm:text-sm transition-colors"
@@ -124,10 +119,13 @@ const Login = () => {
             <button
               type="submit"
               disabled={localLoading}
-              className="group relative flex w-full justify-center rounded-xl bg-indigo-600 py-3 px-4 text-sm font-semibold text-white shadow-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:bg-indigo-400 transition-colors cursor-pointer"
+              className="group relative flex w-full justify-center items-center gap-2 rounded-xl bg-indigo-600 py-3 px-4 text-sm font-semibold text-white shadow-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:bg-indigo-400 transition-colors cursor-pointer"
             >
               {localLoading ? (
-                <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Authenticating Session...</span>
+                </>
               ) : (
                 'Sign In to Dashboard'
               )}
