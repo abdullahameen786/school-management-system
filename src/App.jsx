@@ -24,10 +24,10 @@ import TeacherAnnouncementsView from './pages/teacher/TeacherAnnouncementsView';
 import StudentLayout from './components/layout/StudentLayout';
 import StudentDashboardHome from './pages/student/StudentDashboardHome';
 import StudentAttendanceView from './pages/student/StudentAttendanceView';
-import StudentAnnouncementsView from './pages/student/StudentAnnouncementsView'; // 🚀 Imported Student Announcements View
+import StudentGradesView from './pages/student/StudentGradesView'; // 🚀 Imported Student Grades View
+import StudentAnnouncementsView from './pages/student/StudentAnnouncementsView';
 
-// Placeholder Sub-Pages for Remaining Student Portals
-const StudentGrades = () => <div className="text-xl font-bold text-slate-800">My Grades Portal</div>;
+// Placeholder Sub-Page for Remaining Student Portal
 const StudentAssignments = () => <div className="text-xl font-bold text-slate-800">Student Assignments Hub</div>;
 
 // 🔒 Foolproof Protected Route Component
@@ -104,7 +104,7 @@ function App() {
           >
             <Route index element={<StudentDashboardHome />} />
             <Route path="attendance" element={<StudentAttendanceView />} />
-            <Route path="grades" element={<StudentGrades />} />
+            <Route path="grades" element={<StudentGradesView />} />
             <Route path="assignments" element={<StudentAssignments />} />
             <Route path="announcements" element={<StudentAnnouncementsView />} />
           </Route>
