@@ -3,7 +3,8 @@ import React, { useState, useEffect } from "react";
 import { collection, query, where, getDocs, doc, setDoc } from "firebase/firestore";
 import { db } from "../../firebase/config";
 import { useAuth } from "../../context/AuthContext";
-import { toast } from "react-hot-toast"; // 🚀 Added for modern notification routing
+import { toast } from "react-hot-toast"; 
+import { logAuditAction } from "../../utils/auditLogger"; // 🚀 Audit Logging Utility
 import { Calendar as CalendarIcon, Check, X, Clock, AlertCircle, BookOpen } from "lucide-react";
 
 // Helper function to get correct local date string (YYYY-MM-DD)
@@ -134,7 +135,7 @@ const StudentAttendance = () => {
     fetchStudentsAndAttendance();
   }, [selectedClass, selectedDate, myClasses]);
 
-  // 3. Mark Student Status with Subject Name included
+  // 3. Mark Student Status with Subject Name included & Audit Logging
   const markStatus = async (student, status) => {
     const studentId = student.id;
 
@@ -161,6 +162,16 @@ const StudentAttendance = () => {
         },
         { merge: true },
       );
+
+      // 🚀 Log Attendance Modification/Marking to Admin Audit Trail
+      await logAuditAction(user, 'ATTENDANCE_MARKED', {
+        studentId: studentId,
+        studentName: student.name || 'Student',
+        subject: subjectName,
+        date: selectedDate,
+        status: status
+      });
+
     } catch (error) {
       console.error("Failed to save student attendance:", error);
       toast.error("Network synchronization issue.");
