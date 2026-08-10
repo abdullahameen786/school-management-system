@@ -3,7 +3,33 @@ import React, { useState, useEffect } from 'react';
 import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import { useAuth } from '../../context/AuthContext';
+import { toast } from 'react-hot-toast'; // 🚀 Premium Toast Notifications
 import { CalendarCheck, Check, X, Clock, AlertCircle, Calendar, BookOpen } from 'lucide-react';
+
+// 🚀 Premium Shimmer Table Skeleton Component for Attendance
+const AttendanceSkeleton = () => (
+  <tbody className="animate-pulse">
+    {[1, 2, 3, 4, 5].map((i) => (
+      <tr key={i} className="border-b border-slate-100">
+        <td className="px-6 py-4">
+          <div className="flex items-center gap-3">
+            <div className="h-9 w-9 bg-slate-200 rounded-xl"></div>
+            <div className="h-4 w-24 bg-slate-200 rounded-md"></div>
+          </div>
+        </td>
+        <td className="px-6 py-4">
+          <div className="h-4 w-36 bg-slate-100 rounded-md"></div>
+        </td>
+        <td className="px-6 py-4 flex justify-center">
+          <div className="h-6 w-20 bg-slate-100 rounded-full"></div>
+        </td>
+        <td className="px-6 py-4 text-right">
+          <div className="h-4 w-16 bg-slate-100 rounded-md ml-auto"></div>
+        </td>
+      </tr>
+    ))}
+  </tbody>
+);
 
 const StudentAttendanceView = () => {
   const { user } = useAuth();
@@ -34,7 +60,7 @@ const StudentAttendanceView = () => {
           return matchGrade && matchSection;
         });
 
-        // 3. Fetch attendance records for this student first so we can map courses accurately
+        // 3. Fetch attendance records for this student
         const q = query(
           collection(db, 'attendance'),
           where('targetId', '==', user.uid)
@@ -64,13 +90,13 @@ const StudentAttendanceView = () => {
         const coursesList = Array.from(courseSet);
         setUniqueCourses(coursesList);
 
-        // Auto-select the first assigned course by default if available
         if (coursesList.length > 0) {
           setSelectedCourse(coursesList[0]);
         }
 
       } catch (error) {
         console.error("Error fetching student attendance data:", error);
+        toast.error("Failed to load attendance history.");
       } finally {
         setLoading(false);
       }
@@ -94,7 +120,7 @@ const StudentAttendanceView = () => {
   const attendancePercentage = totalRecords > 0 ? ((presentCount / totalRecords) * 100).toFixed(1) : 100;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-in fade-in duration-200">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-800">My Attendance Records</h1>
@@ -103,7 +129,7 @@ const StudentAttendanceView = () => {
 
         {/* Course Filter Dropdown */}
         {uniqueCourses.length > 0 && (
-          <div className="flex items-center gap-2 bg-white px-4 py-2.5 rounded-xl border border-slate-200 shadow-sm w-full sm:w-auto">
+          <div className="flex items-center gap-2 bg-white px-4 py-2.5 rounded-xl border border-slate-200 shadow-sm w-full sm:w-auto focus-within:border-sky-500 focus-within:ring-1 focus-within:ring-sky-500">
             <BookOpen className="h-4 w-4 text-sky-600 shrink-0" />
             <select
               value={selectedCourse}
@@ -125,7 +151,7 @@ const StudentAttendanceView = () => {
             <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Course Rate</p>
             <h3 className="text-2xl font-bold text-slate-800 mt-1">{attendancePercentage}%</h3>
           </div>
-          <div className="h-12 w-12 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center font-bold">
+          <div className="h-12 w-12 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center font-bold border border-sky-100 shadow-xs">
             <CalendarCheck className="h-6 w-6" />
           </div>
         </div>
@@ -135,7 +161,7 @@ const StudentAttendanceView = () => {
             <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Present Days</p>
             <h3 className="text-2xl font-bold text-emerald-600 mt-1">{presentCount}</h3>
           </div>
-          <div className="h-12 w-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
+          <div className="h-12 w-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold border border-emerald-100 shadow-xs">
             <Check className="h-6 w-6" />
           </div>
         </div>
@@ -145,7 +171,7 @@ const StudentAttendanceView = () => {
             <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Late Days</p>
             <h3 className="text-2xl font-bold text-amber-600 mt-1">{lateCount}</h3>
           </div>
-          <div className="h-12 w-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold">
+          <div className="h-12 w-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold border border-amber-100 shadow-xs">
             <Clock className="h-6 w-6" />
           </div>
         </div>
@@ -155,7 +181,7 @@ const StudentAttendanceView = () => {
             <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Absent Days</p>
             <h3 className="text-2xl font-bold text-rose-600 mt-1">{absentCount}</h3>
           </div>
-          <div className="h-12 w-12 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center font-bold">
+          <div className="h-12 w-12 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center font-bold border border-rose-100 shadow-xs">
             <X className="h-6 w-6" />
           </div>
         </div>
@@ -173,58 +199,62 @@ const StudentAttendanceView = () => {
                 <th scope="col" className="px-6 py-4 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider">Recorded Timestamp</th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-slate-200">
-              {loading ? (
-                <tr>
-                  <td colSpan="4" className="px-6 py-12 text-center">
-                    <div className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-slate-200 border-t-sky-600"></div>
-                  </td>
-                </tr>
-              ) : uniqueCourses.length === 0 ? (
+            
+            {loading ? (
+              <AttendanceSkeleton />
+            ) : uniqueCourses.length === 0 ? (
+              <tbody>
                 <tr>
                   <td colSpan="4" className="px-6 py-12 text-center text-slate-500">
                     <AlertCircle className="h-8 w-8 mx-auto text-slate-400 mb-3" />
                     No courses assigned to your class and section yet.
                   </td>
                 </tr>
-              ) : filteredRecords.length === 0 ? (
+              </tbody>
+            ) : filteredRecords.length === 0 ? (
+              <tbody>
                 <tr>
                   <td colSpan="4" className="px-6 py-12 text-center text-slate-500">
                     <AlertCircle className="h-8 w-8 mx-auto text-slate-400 mb-3" />
                     No attendance records found for {selectedCourse}.
                   </td>
                 </tr>
-              ) : (
-                filteredRecords.map((record) => {
+              </tbody>
+            ) : (
+              <tbody className="bg-white divide-y divide-slate-200">
+                {filteredRecords.map((record) => {
                   const displaySub = record.subjectName || record.subject || record.course || record.className || 'General Course';
                   return (
-                    <tr key={record.id} className="hover:bg-slate-50/80 transition-colors">
+                    <tr key={record.id} className="hover:bg-slate-50/50 transition-colors">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center gap-3">
-                          <div className="h-9 w-9 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center">
+                          <div className="h-9 w-9 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center border border-sky-100 shadow-xs">
                             <Calendar className="h-4 w-4" />
                           </div>
-                          <span className="font-semibold text-slate-800">{record.date}</span>
+                          <span className="font-bold text-slate-800">{record.date}</span>
                         </div>
                       </td>
+                      
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="text-sm font-semibold text-slate-800">
+                        <span className="text-sm font-bold text-slate-800">
                           {displaySub}
                         </span>
                       </td>
+                      
                       <td className="px-6 py-4 whitespace-nowrap text-center">
-                        {record.status === 'present' && <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700"><Check className="h-3.5 w-3.5"/> Present</span>}
-                        {record.status === 'absent' && <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-rose-100 text-rose-700"><X className="h-3.5 w-3.5"/> Absent</span>}
-                        {record.status === 'late' && <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-700"><Clock className="h-3.5 w-3.5"/> Late</span>}
+                        {record.status === 'present' && <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-100 shadow-xs"><Check className="h-3.5 w-3.5"/> Present</span>}
+                        {record.status === 'absent' && <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-rose-50 text-rose-700 border border-rose-100 shadow-xs"><X className="h-3.5 w-3.5"/> Absent</span>}
+                        {record.status === 'late' && <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-100 shadow-xs"><Clock className="h-3.5 w-3.5"/> Late</span>}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-xs text-slate-400 font-medium">
+                      
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-xs text-slate-400 font-semibold">
                         {record.timestamp ? new Date(record.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'N/A'}
                       </td>
                     </tr>
                   );
-                })
-              )}
-            </tbody>
+                })}
+              </tbody>
+            )}
           </table>
         </div>
       </div>
