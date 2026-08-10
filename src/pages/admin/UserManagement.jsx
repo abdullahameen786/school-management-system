@@ -4,7 +4,38 @@ import { collection, query, where, getDocs, doc, setDoc, updateDoc, deleteDoc } 
 import { initializeApp, deleteApp } from 'firebase/app';
 import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
 import { db, firebaseConfig } from '../../firebase/config';
-import { Plus, Search, Edit2, Trash2, ShieldAlert, X, Mail, User, Layers, BookOpen, Lock } from 'lucide-react';
+import { toast } from 'react-hot-toast'; // 🚀 Premium Global Toast Notifications
+import { Plus, Search, Edit2, Trash2, ShieldAlert, X, Mail, User, Layers, BookOpen, Lock, Loader2 } from 'lucide-react';
+
+// 🚀 Premium Shimmer Skeleton Table Loader Component
+const TableSkeleton = ({ showClassColumn }) => (
+  <tbody className="animate-pulse">
+    {[1, 2, 3, 4, 5].map((i) => (
+      <tr key={i} className="border-b border-slate-100">
+        <td className="px-6 py-4">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 bg-slate-200 rounded-full"></div>
+            <div className="h-4 w-28 bg-slate-200 rounded-md"></div>
+          </div>
+        </td>
+        <td className="px-6 py-4">
+          <div className="h-4 w-40 bg-slate-100 rounded-md"></div>
+        </td>
+        <td className="px-6 py-4">
+          <div className="h-6 w-16 bg-slate-100 rounded-full"></div>
+        </td>
+        {showClassColumn && (
+          <td className="px-6 py-4">
+            <div className="h-6 w-24 bg-slate-100 rounded-lg"></div>
+          </td>
+        )}
+        <td className="px-6 py-4 text-right">
+          <div className="h-8 w-16 bg-slate-100 rounded-lg ml-auto"></div>
+        </td>
+      </tr>
+    ))}
+  </tbody>
+);
 
 const UserManagement = () => {
   const [activeTab, setActiveTab] = useState('teacher');
@@ -19,7 +50,7 @@ const UserManagement = () => {
   const [formData, setFormData] = useState({ 
     name: '', 
     email: '', 
-    password: '', // Default blank rakhein gey starting mein
+    password: '', 
     className: 'Class 8',
     section: 'A'
   });
@@ -39,6 +70,7 @@ const UserManagement = () => {
       setUsers(fetchedUsers);
     } catch (error) {
       console.error("Error fetching users: ", error);
+      toast.error("Failed to load user roster.");
     } finally {
       setLoading(false);
     }
@@ -66,8 +98,8 @@ const UserManagement = () => {
     setFormData({
       name: user.name || '',
       email: user.email || '',
-      password: user.password || '', // 🚀 Existing plain text password load karein gey edit modal mein
-      className: user.className || 'Class 8',
+      password: user.password || '', 
+      className: user.gradeClass || user.className || 'Class 8',
       section: user.section || 'A'
     });
     setIsModalOpen(true);
@@ -87,19 +119,21 @@ const UserManagement = () => {
       };
 
       if (activeTab === 'student') {
+        // Safe duplication for backend layout queries cross-compatibility
         payload.className = formData.className;
+        payload.gradeClass = formData.className; 
         payload.section = formData.section;
       }
 
-      // If password field has text, add it to the sync payload
       if (formData.password) {
         payload.password = formData.password.trim();
       }
 
       if (editingUserId) {
-        // 🚀 Existing profile update including new password string replacement
         await updateDoc(doc(db, 'users', editingUserId), payload);
+        toast.success("User profile structure modified safely!");
       } else {
+        // Secondary app runtime context build sequence
         const secondaryApp = initializeApp(firebaseConfig, "SecondaryAuthApp");
         const secondaryAuth = getAuth(secondaryApp);
 
@@ -116,6 +150,7 @@ const UserManagement = () => {
         payload.password = formData.password || 'school123'; 
 
         await setDoc(doc(db, 'users', targetId), payload);
+        toast.success(`New ${activeTab} account securely deployed!`);
       }
 
       setFormData({ name: '', email: '', password: '', className: 'Class 8', section: 'A' });
@@ -124,25 +159,46 @@ const UserManagement = () => {
       fetchUsers(); 
     } catch (error) {
       console.error("Error saving record: ", error);
-      alert("Error: " + error.message);
+      toast.error(error.message || "Execution engine deployment fault.");
     } finally {
       setSubmitLoading(false);
     }
   };
 
   const handleDeleteUser = async (id) => {
-    if (window.confirm("Are you sure you want to remove this user profile?")) {
-      try {
-        await deleteDoc(doc(db, 'users', id));
-        fetchUsers();
-      } catch (error) {
-        console.error("Error deleting user:", error);
-      }
-    }
+    // Dynamic premium toast orchestration override for simple windows window alert frames
+    const confirmToast = toast((t) => (
+      <div className="flex flex-col gap-2.5 p-1">
+        <p className="text-xs font-semibold text-slate-200">Are you sure you want to completely erase this profile stream?</p>
+        <div className="flex justify-end gap-2 text-[11px]">
+          <button 
+            onClick={() => toast.dismiss(t.id)} 
+            className="px-2.5 py-1 bg-slate-600 hover:bg-slate-500 rounded-md font-medium text-white transition-colors cursor-pointer"
+          >
+            Cancel
+          </button>
+          <button 
+            onClick={async () => {
+              toast.dismiss(t.id);
+              try {
+                await deleteDoc(doc(db, 'users', id));
+                toast.success("Profile reference wiped cleanly from cluster.");
+                fetchUsers();
+              } catch (err) {
+                toast.error("Deletion target unreachable.");
+              }
+            }} 
+            className="px-2.5 py-1 bg-rose-600 hover:bg-rose-500 rounded-md font-bold text-white transition-colors cursor-pointer"
+          >
+            Confirm Delete
+          </button>
+        </div>
+      </div>
+    ), { duration: 6000, style: { background: '#1e293b' } });
   };
 
   return (
-    <div className="space-y-6 relative">
+    <div className="space-y-6 relative animate-in fade-in duration-200">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-800">User Management</h1>
@@ -162,13 +218,13 @@ const UserManagement = () => {
           <div className="flex bg-slate-100 p-1 rounded-lg w-full sm:w-auto">
             <button
               onClick={() => setActiveTab('teacher')}
-              className={`flex-1 sm:px-6 py-2 rounded-md text-sm font-medium transition-all cursor-pointer ${activeTab === 'teacher' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+              className={`flex-1 sm:px-6 py-2 rounded-md text-sm font-medium transition-all cursor-pointer ${activeTab === 'teacher' ? 'bg-white text-indigo-700 shadow-sm font-semibold' : 'text-slate-500 hover:text-slate-700'}`}
             >
               Teachers
             </button>
             <button
               onClick={() => setActiveTab('student')}
-              className={`flex-1 sm:px-6 py-2 rounded-md text-sm font-medium transition-all cursor-pointer ${activeTab === 'student' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+              className={`flex-1 sm:px-6 py-2 rounded-md text-sm font-medium transition-all cursor-pointer ${activeTab === 'student' ? 'bg-white text-indigo-700 shadow-sm font-semibold' : 'text-slate-500 hover:text-slate-700'}`}
             >
               Students
             </button>
@@ -203,46 +259,49 @@ const UserManagement = () => {
                 <th className="px-6 py-4 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-slate-200">
-              {loading ? (
-                <tr>
-                  <td colSpan={activeTab === 'student' ? '5' : '4'} className="px-6 py-12 text-center">
-                    <div className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-slate-300 border-t-indigo-600"></div>
-                  </td>
-                </tr>
-              ) : filteredUsers.length === 0 ? ( 
+            
+            {loading ? (
+              <TableSkeleton showClassColumn={activeTab === 'student'} />
+            ) : filteredUsers.length === 0 ? ( 
+              <tbody>
                 <tr>
                   <td colSpan={activeTab === 'student' ? '5' : '4'} className="px-6 py-12 text-center text-slate-500">
                     <ShieldAlert className="h-8 w-8 mx-auto text-slate-400 mb-3" />
                     No {activeTab}s found matching criteria.
                   </td>
                 </tr>
-              ) : (
-                filteredUsers.map((user) => (
-                  <tr key={user.id} className="hover:bg-slate-50/80 transition-colors">
+              </tbody>
+            ) : (
+              <tbody className="bg-white divide-y divide-slate-200">
+                {filteredUsers.map((user) => (
+                  <tr key={user.id} className="hover:bg-slate-50/50 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
-                        <div className="h-10 w-10 flex-shrink-0 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold">
-                          {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
-                        </div>
+                        {user.photoURL ? (
+                          <img src={user.photoURL} alt="" className="h-10 w-10 rounded-full object-cover shadow-sm border border-slate-100" />
+                        ) : (
+                          <div className="h-10 w-10 flex-shrink-0 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold text-sm border border-indigo-100 shadow-xs">
+                            {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
+                          </div>
+                        )}
                         <div className="ml-4">
-                          <div className="text-sm font-medium text-slate-900">{user.name}</div>
+                          <div className="text-sm font-bold text-slate-800">{user.name}</div>
                         </div>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-slate-500">{user.email}</div>
+                      <div className="text-sm font-medium text-slate-500">{user.email}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-emerald-100 text-emerald-800 capitalize">
+                      <span className="px-3 py-1 inline-flex text-xs leading-5 font-bold rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100 capitalize">
                         {user.role}
                       </span>
                     </td>
                     {activeTab === 'student' && (
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-lg bg-sky-50 text-sky-700 border border-sky-100">
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-xl bg-sky-50 text-sky-700 border border-sky-100 shadow-xs">
                           <Layers className="h-3.5 w-3.5" />
-                          {user.className || 'Unassigned'} {user.section ? `(Sec ${user.section})` : ''}
+                          {user.gradeClass || user.className || 'Unassigned'} {user.section ? `(Sec ${user.section})` : ''}
                         </span>
                       </td>
                     )}
@@ -250,14 +309,14 @@ const UserManagement = () => {
                       <div className="flex justify-end gap-2">
                         <button 
                           onClick={() => handleOpenEditModal(user)}
-                          className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
+                          className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-colors cursor-pointer"
                           title="Edit User"
                         >
                           <Edit2 className="h-4 w-4" />
                         </button>
                         <button 
                           onClick={() => handleDeleteUser(user.id)}
-                          className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                          className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
                           title="Delete User"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -265,16 +324,16 @@ const UserManagement = () => {
                       </div>
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
+                ))}
+              </tbody>
+            )}
           </table>
         </div>
       </div>
 
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 overflow-y-auto">
-          <div className="w-full max-w-md bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden transform transition-all animate-in fade-in zoom-in-95 duration-200 my-8">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 overflow-y-auto animate-in fade-in duration-200">
+          <div className="w-full max-w-md bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden transform transition-all animate-in zoom-in-95 duration-200 my-8">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
               <h3 className="text-lg font-bold text-slate-800">
                 {editingUserId ? `Edit ${activeTab === 'teacher' ? 'Teacher' : 'Student'}` : `Add New ${activeTab === 'teacher' ? 'Teacher' : 'Student'}`}
@@ -294,6 +353,7 @@ const UserManagement = () => {
                     name="fullName"
                     type="text"
                     required
+                    autoFocus
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     className="block w-full pl-10 pr-3 py-2.5 border border-slate-200 bg-slate-50 rounded-xl text-sm placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:bg-white focus:ring-1 focus:ring-indigo-500 transition-all"
@@ -311,18 +371,18 @@ const UserManagement = () => {
                     name="userEmail"
                     type="email"
                     required
+                    disabled={!!editingUserId} // Production secure: Emails are primary auth keys, prevent simple text mutations
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="block w-full pl-10 pr-3 py-2.5 border border-slate-200 bg-slate-50 rounded-xl text-sm placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:bg-white focus:ring-1 focus:ring-indigo-500 transition-all"
+                    className="block w-full pl-10 pr-3 py-2.5 border border-slate-200 bg-slate-50 rounded-xl text-sm placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:bg-white focus:ring-1 focus:ring-indigo-500 transition-all disabled:opacity-50"
                     placeholder="user@school.com"
                   />
                 </div>
               </div>
 
-              {/* 🚀 Changed logic: password option will now show up during BOTH creating and editing profiles */}
               <div>
                 <label htmlFor="tempPasswordInput" className="block text-sm font-semibold text-slate-700 mb-1">
-                  {editingUserId ? 'Update Password' : 'Temporary Password'}
+                  {editingUserId ? 'Update Database Password String' : 'Temporary Password'}
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400"><Lock className="h-4 w-4" /></div>
@@ -338,7 +398,7 @@ const UserManagement = () => {
                   />
                 </div>
                 <p className="text-xs text-slate-400 mt-1">
-                  {editingUserId ? 'Leave it or modify to change the user login credentials.' : 'User will use this password to sign in for the first time.'}
+                  {editingUserId ? 'Modifying this replaces plain reference data logs.' : 'User will use this password to sign in for the first time.'}
                 </p>
               </div>
 
@@ -393,9 +453,14 @@ const UserManagement = () => {
                 <button
                   type="submit"
                   disabled={submitLoading}
-                  className="px-4 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700 transition-colors disabled:bg-indigo-400 shadow-sm flex items-center justify-center min-w-[100px] cursor-pointer"
+                  className="px-4 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700 transition-colors disabled:bg-indigo-400 shadow-sm flex items-center justify-center gap-2 min-w-[120px] cursor-pointer"
                 >
-                  {submitLoading ? <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" /> : (editingUserId ? 'Update Profile' : 'Create Account')}
+                  {submitLoading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>Saving...</span>
+                    </>
+                  ) : (editingUserId ? 'Update Profile' : 'Create Account')}
                 </button>
               </div>
             </form>
