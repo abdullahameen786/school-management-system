@@ -11,17 +11,16 @@ const TeacherAnnouncementsView = () => {
   const [myClasses, setMyClasses] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Modal & Form States with Class and Course options
+  // Modal & Form States using classId to track exact class, section, and course
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [submitLoading, setSubmitLoading] = useState(false);
   const [formData, setFormData] = useState({
-    targetClass: '',
-    targetCourse: '',
+    classId: '',
     title: '',
     content: ''
   });
 
-  // 1. Fetch Teacher's Assigned Classes for dropdown options
+  // 1. Fetch Teacher's Assigned Classes
   useEffect(() => {
     const fetchClasses = async () => {
       try {
@@ -32,8 +31,7 @@ const TeacherAnnouncementsView = () => {
         if (fetched.length > 0) {
           setFormData(prev => ({ 
             ...prev, 
-            targetClass: fetched[0].gradeClass || fetched[0].className || 'Class 8',
-            targetCourse: fetched[0].subjectName || fetched[0].className || 'General'
+            classId: fetched[0].id 
           }));
         }
       } catch (error) {
@@ -42,10 +40,6 @@ const TeacherAnnouncementsView = () => {
     };
     if (user?.uid) fetchClasses();
   }, [user]);
-
-  // Extract unique classes and courses from assigned roster
-  const uniqueClasses = Array.from(new Set(myClasses.map(c => c.gradeClass || c.className).filter(Boolean)));
-  const uniqueCourses = Array.from(new Set(myClasses.map(c => c.subjectName || c.className).filter(Boolean)));
 
   // 2. Fetch Announcements
   const fetchAnnouncements = async () => {
@@ -77,31 +71,35 @@ const TeacherAnnouncementsView = () => {
     }
   }, [user]);
 
-  // 3. Handle Publishing Student Announcement
+  // 3. Handle Publishing Student Announcement targeting exact class & section
   const handleCreateAnnouncement = async (e) => {
     e.preventDefault();
-    if (!formData.targetClass || !formData.targetCourse) {
-      alert("Please select both a target class and course.");
+    if (!formData.classId) {
+      alert("Please select a target assigned class and section.");
       return;
     }
 
     setSubmitLoading(true);
     try {
+      const selectedClassObj = myClasses.find(c => c.id === formData.classId);
+      if (!selectedClassObj) throw new Error("Selected class not found.");
+
       await addDoc(collection(db, 'announcements'), {
         title: formData.title.trim(),
         content: formData.content.trim(),
         teacherId: user.uid,
         teacherName: user.name || 'Instructor',
-        className: formData.targetClass,
-        subjectName: formData.targetCourse,
+        classId: formData.classId,
+        className: selectedClassObj.gradeClass || selectedClassObj.className || 'Class',
+        section: selectedClassObj.section || 'A',
+        subjectName: selectedClassObj.subjectName || selectedClassObj.className || 'General',
         targetGroup: 'student', 
         createdAt: new Date().toISOString()
       });
 
       setIsModalOpen(false);
       setFormData({ 
-        targetClass: uniqueClasses[0] || 'Class 8', 
-        targetCourse: uniqueCourses[0] || 'General', 
+        classId: myClasses[0]?.id || '', 
         title: '', 
         content: '' 
       });
@@ -177,12 +175,12 @@ const TeacherAnnouncementsView = () => {
                         <h3 className="text-lg font-bold text-slate-800">{item.title}</h3>
                         {item.className && (
                           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100">
-                            <GraduationCap className="h-3 w-3" /> {item.className}
+                            <GraduationCap className="h-3 w-3" /> {item.className} {item.section ? `- Sec ${item.section}` : ''}
                           </span>
                         )}
                         {item.subjectName && (
                           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-xs font-semibold bg-sky-50 text-sky-700 border border-sky-100">
-                            <Layers className="h-3 w-3" /> {item.subjectName}
+                            <BookOpen className="h-3 w-3" /> {item.subjectName}
                           </span>
                         )}
                       </div>
@@ -201,7 +199,7 @@ const TeacherAnnouncementsView = () => {
         </div>
       )}
 
-      {/* Modal for Creating Student Announcement with Class and Course options */}
+      {/* Modal for Creating Student Announcement */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
           <div className="w-full max-w-md bg-white rounded-2xl shadow-xl border border-slate-100 transform transition-all animate-in fade-in zoom-in-95 duration-200">
@@ -214,41 +212,23 @@ const TeacherAnnouncementsView = () => {
 
             <form onSubmit={handleCreateAnnouncement} className="p-6 space-y-4">
               
-              {/* Option 1: Select Assigned Class */}
+              {/* Dropdown showing exact Assigned Class and Section */}
               <div>
-                <label htmlFor="targetClassSelect" className="block text-sm font-semibold text-slate-700 mb-1">Select Assigned Class</label>
+                <label htmlFor="targetClassSelect" className="block text-sm font-semibold text-slate-700 mb-1">Select Assigned Class & Section</label>
                 <div className="flex items-center gap-2 bg-slate-50 px-3 py-2.5 border border-slate-200 rounded-xl">
                   <GraduationCap className="h-4 w-4 text-emerald-600" />
                   <select
                     id="targetClassSelect"
-                    name="targetClass"
+                    name="classId"
                     required
-                    value={formData.targetClass}
-                    onChange={(e) => setFormData({ ...formData, targetClass: e.target.value })}
+                    value={formData.classId}
+                    onChange={(e) => setFormData({ ...formData, classId: e.target.value })}
                     className="bg-transparent border-none text-sm font-semibold text-slate-700 focus:outline-none cursor-pointer w-full"
                   >
-                    {uniqueClasses.map(clsName => (
-                      <option key={clsName} value={clsName}>{clsName}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {/* Option 2: Select Assigned Course */}
-              <div>
-                <label htmlFor="targetCourseSelect" className="block text-sm font-semibold text-slate-700 mb-1">Select Assigned Course / Subject</label>
-                <div className="flex items-center gap-2 bg-slate-50 px-3 py-2.5 border border-slate-200 rounded-xl">
-                  <BookOpen className="h-4 w-4 text-emerald-600" />
-                  <select
-                    id="targetCourseSelect"
-                    name="targetCourse"
-                    required
-                    value={formData.targetCourse}
-                    onChange={(e) => setFormData({ ...formData, targetCourse: e.target.value })}
-                    className="bg-transparent border-none text-sm font-semibold text-slate-700 focus:outline-none cursor-pointer w-full"
-                  >
-                    {uniqueCourses.map(courseName => (
-                      <option key={courseName} value={courseName}>{courseName}</option>
+                    {myClasses.map(cls => (
+                      <option key={cls.id} value={cls.id}>
+                        {cls.gradeClass || cls.className || 'Class'} {cls.section ? `- Section ${cls.section}` : ''} {cls.subjectName ? `(${cls.subjectName})` : ''}
+                      </option>
                     ))}
                   </select>
                 </div>
