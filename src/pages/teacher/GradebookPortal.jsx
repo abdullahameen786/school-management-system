@@ -1,6 +1,6 @@
 // src/pages/teacher/GradebookPortal.jsx
 import React, { useState, useEffect } from 'react';
-import { collection, query, where, getDocs, doc, setDoc, addDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, getDoc, setDoc, addDoc } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-hot-toast'; 
@@ -196,7 +196,6 @@ const GradebookPortal = () => {
         createdAt: new Date().toISOString()
       });
       
-      // 🚀 Log exam creation audit action
       await logAuditAction(user, 'EXAM_CREATED', {
         examTitle: examFormData.title.trim(),
         maxMarks: examFormData.maxMarks,
@@ -222,7 +221,7 @@ const GradebookPortal = () => {
 
   const activeEval = [...exams, ...assignments].find(e => e.id === selectedEvaluation);
 
-const handleSaveGrades = async (e) => {
+  const handleSaveGrades = async (e) => {
     e.preventDefault();
     setSaveLoading(true);
 
@@ -238,15 +237,14 @@ const handleSaveGrades = async (e) => {
 
         const recordId = `${student.id}_${selectedEvaluation}`;
         
-        // 🚀 1. Fetch existing/old grade record from Firestore before overwriting
+        // 🚀 Fetch existing record safely with getDoc
         const existingDocRef = doc(db, 'grades', recordId);
         const existingDocSnap = await getDoc(existingDocRef);
         const oldMarks = existingDocSnap.exists() ? existingDocSnap.data().obtainedMarks : null;
 
-        // Skip logging if marks haven't changed at all
         if (oldMarks === parsedScore) return;
 
-        // 🚀 2. Save new grades
+        // Save new grades
         await setDoc(existingDocRef, {
           studentId: student.id,
           studentName: student.name,
@@ -259,7 +257,7 @@ const handleSaveGrades = async (e) => {
           updatedAt: new Date().toISOString()
         }, { merge: true });
 
-        // 🚀 3. Log exact old marks vs new marks modification
+        // Log modification
         await logAuditAction(user, oldMarks !== null ? 'GRADE_MODIFIED' : 'GRADE_RECORD_SAVED', {
           studentId: student.id,
           studentName: student.name,
