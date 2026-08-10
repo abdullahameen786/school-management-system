@@ -205,7 +205,6 @@ const AssignmentsHub = () => {
     setFormData((prev) => ({ ...prev, attachmentUrl: "", attachmentName: "" }));
   };
 
-  // 🚀 Timeout Helper to prevent infinite hanging
   const withTimeout = (promise, ms = 12000) => {
     let timeoutId;
     const timeoutPromise = new Promise((_, reject) => {
@@ -471,10 +470,13 @@ const AssignmentsHub = () => {
         </div>
       )}
 
+      {/* 🚀 Fully Responsive Scrollable Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 overflow-y-auto">
-          <div className="w-full max-w-lg bg-white rounded-2xl shadow-xl border border-slate-100 transform transition-all animate-in fade-in zoom-in-95 duration-200 my-8">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-3 sm:p-4 overflow-y-auto">
+          <div className="w-full max-w-lg bg-white rounded-2xl shadow-xl border border-slate-100 flex flex-col max-h-[90vh] my-auto overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0 bg-white z-10">
               <h3 className="text-lg font-bold text-slate-800">
                 {editingAssignmentId
                   ? "Edit Assignment"
@@ -488,8 +490,9 @@ const AssignmentsHub = () => {
               </button>
             </div>
 
-            <form onSubmit={handlePublish} className="p-6 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+            {/* Scrollable Form Body */}
+            <form onSubmit={handlePublish} className="p-6 space-y-4 overflow-y-auto flex-1">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label
                     htmlFor="assignmentGradeSelect"
@@ -609,7 +612,7 @@ const AssignmentsHub = () => {
                   </span>
                 </label>
                 <div
-                  className={`mt-1 border-2 border-dashed rounded-xl p-4 text-center transition-all relative ${selectedFile || formData.attachmentName && !formData.attachmentUrl ? "border-emerald-500 bg-emerald-50/20" : fileError ? "border-rose-400 bg-rose-50/20" : "border-slate-200 bg-slate-50 hover:bg-slate-100/50"}`}
+                  className={`mt-1 border-2 border-dashed rounded-xl p-4 text-center transition-all relative ${selectedFile || (formData.attachmentName && !formData.attachmentUrl) ? "border-emerald-500 bg-emerald-50/20" : fileError ? "border-rose-400 bg-rose-50/20" : "border-slate-200 bg-slate-50 hover:bg-slate-100/50"}`}
                 >
                   {!(selectedFile || formData.attachmentName) && (
                     <input
@@ -667,7 +670,6 @@ const AssignmentsHub = () => {
                 )}
               </div>
 
-              {/* 🚀 Reference Link / URL Option Added */}
               <div>
                 <label
                   htmlFor="assignmentUrlInput"
@@ -757,7 +759,8 @@ const AssignmentsHub = () => {
                 </div>
               </div>
 
-              <div className="flex justify-end gap-3 pt-4 border-t border-slate-100 mt-6">
+              {/* Modal Footer Buttons pinned inside scrollable or at bottom */}
+              <div className="flex justify-end gap-3 pt-4 border-t border-slate-100 mt-6 shrink-0 bg-white sticky bottom-0">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
