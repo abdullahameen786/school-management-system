@@ -1,9 +1,9 @@
 // src/pages/auth/Login.jsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { signInWithEmailAndPassword } from 'firebase/auth';
-import { collection, query, where, getDocs } from 'firebase/firestore';
-import { auth, db } from '../../firebase/config';
+import { auth } from '../../firebase/config';
+import { useAuth } from '../../context/AuthContext';
 import { Lock, Mail, Eye, EyeOff } from 'lucide-react';
 
 const Login = () => {
@@ -14,6 +14,15 @@ const Login = () => {
   const [localLoading, setLocalLoading] = useState(false);
   
   const navigate = useNavigate();
+  const { user } = useAuth(); // 🚀 Import global user state
+
+  // 🚀 Single Source of Truth Navigation
+  // Jaise hi Context ke andar user set hoga, automatically uske role ke mutabiq route kar diya jayega.
+  useEffect(() => {
+    if (user && user.role) {
+      navigate(`/${user.role}`, { replace: true });
+    }
+  }, [user, navigate]);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -24,30 +33,8 @@ const Login = () => {
 
     try {
       console.log("Submitting credentials for:", typedEmail);
+      // Sirf Auth Sign In Trigger karna hai. Baqi sab Context sambhale ga.
       await signInWithEmailAndPassword(auth, typedEmail, password);
-      
-      // 🚀 DIRECT NAVIGATION CONTROL (No useEffect looping)
-      if (typedEmail === 'admin@school.com') {
-        console.log("Admin override active. Routing to /admin immediately.");
-        setLocalLoading(false);
-        navigate('/admin', { replace: true });
-        return;
-      }
-
-      // If it's a teacher or student, query the database once
-      const q = query(collection(db, 'users'), where('email', '==', typedEmail));
-      const snap = await getDocs(q);
-      
-      if (!snap.empty) {
-        const role = snap.docs[0].data().role;
-        console.log("User role verified from DB:", role);
-        setLocalLoading(false);
-        navigate(`/${role}`, { replace: true });
-      } else {
-        setError('User record not found in system database.');
-        setLocalLoading(false);
-      }
-
     } catch (err) {
       console.error("Operational catch branch active:", err);
       if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {

@@ -1,7 +1,7 @@
 // src/context/AuthContext.jsx
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../firebase/config';
 
 const AuthContext = createContext();
@@ -26,13 +26,12 @@ export const AuthProvider = ({ children }) => {
           };
 
           try {
-            const q = query(collection(db, 'users'), where('email', '==', firebaseUser.email.trim()));
-            const querySnapshot = await getDocs(q);
+            // ⚡ Optimized: Direct Document Fetch using UID instead of Email Query
+            const userDocRef = doc(db, 'users', firebaseUser.uid);
+            const userSnap = await getDoc(userDocRef);
 
-            if (!querySnapshot.empty) {
-              const userDoc = querySnapshot.docs[0];
-              const firestoreData = userDoc.data();
-              
+            if (userSnap.exists()) {
+              const firestoreData = userSnap.data();
               userData = {
                 ...userData,
                 ...firestoreData,
@@ -52,7 +51,8 @@ export const AuthProvider = ({ children }) => {
         console.error("Critical Auth Sync Error:", error);
         setUser(null);
       } finally {
-        setLoading(false); // 🚨 Loop explicitly broken here
+        // Safe placement ensuring loading is turned off only after user context is fully built
+        setLoading(false); 
       }
     }, (error) => {
       console.error("Auth observer failure:", error);
